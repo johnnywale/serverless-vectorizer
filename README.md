@@ -1,16 +1,23 @@
 # Serverless Vectorizer
 
-AWS Lambda container image for generating text embeddings. Models are pre-loaded into Docker images for fast cold starts - one image per model variant.
+[![CI](https://github.com/johnnywale/serverless-vectorizer/actions/workflows/ci.yml/badge.svg)](https://github.com/johnnywale/serverless-vectorizer/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/johnnywale/serverless-vectorizer)](https://github.com/johnnywale/serverless-vectorizer/releases)
+[![License](https://img.shields.io/github/license/johnnywale/serverless-vectorizer)](LICENSE-MIT)
+[![Docker Pulls](https://img.shields.io/docker/pulls/johnnywale/serverless-vectorizer)](https://hub.docker.com/r/johnnywale/serverless-vectorizer)
+[![Docker Image Size](https://img.shields.io/docker/image-size/johnnywale/serverless-vectorizer/latest)](https://hub.docker.com/r/johnnywale/serverless-vectorizer)
+
+AWS Lambda container image for generating text embeddings. Models are pre-loaded into Docker images for fast cold
+starts - one image per model variant.
 
 ## Supported Models
 
-| Model | ID | Dimension | Language |
-|-------|-----|-----------|----------|
-| BGE-Small-EN-v1.5 | `bge-small-en-v1.5` | 384 | English |
-| BGE-Base-EN-v1.5 | `bge-base-en-v1.5` | 768 | English |
-| BGE-Large-EN-v1.5 | `bge-large-en-v1.5` | 1024 | English |
-| Multilingual-E5-Large | `multilingual-e5-large` | 1024 | Multilingual |
-| All-MpNet-Base-v2 | `all-mpnet-base-v2` | 768 | English |
+| Model                 | ID                      | Dimension | Language     |
+|-----------------------|-------------------------|-----------|--------------|
+| BGE-Small-EN-v1.5     | `bge-small-en-v1.5`     | 384       | English      |
+| BGE-Base-EN-v1.5      | `bge-base-en-v1.5`      | 768       | English      |
+| BGE-Large-EN-v1.5     | `bge-large-en-v1.5`     | 1024      | English      |
+| Multilingual-E5-Large | `multilingual-e5-large` | 1024      | Multilingual |
+| All-MpNet-Base-v2     | `all-mpnet-base-v2`     | 768       | English      |
 
 All models support a maximum of 512 tokens per input text.
 
@@ -92,9 +99,21 @@ aws lambda invoke \
 ```
 
 **Response:**
+
 ```json
 {
-  "embeddings": [[0.123, 0.456, ...], [0.789, 0.012, ...]],
+  "embeddings": [
+    [
+      0.123,
+      0.456,
+      ...
+    ],
+    [
+      0.789,
+      0.012,
+      ...
+    ]
+  ],
   "dimension": 384
 }
 ```
@@ -121,6 +140,7 @@ aws lambda invoke \
 ```
 
 The S3 file can contain:
+
 - Plain text (embedded as single document)
 - JSON array of strings (each string embedded separately)
 
@@ -142,9 +162,16 @@ aws lambda invoke \
 ```
 
 **Response includes S3 location:**
+
 ```json
 {
-  "embeddings": [[0.123, 0.456, ...]],
+  "embeddings": [
+    [
+      0.123,
+      0.456,
+      ...
+    ]
+  ],
   "dimension": 384,
   "s3_location": "s3://my-output-bucket/embeddings/output.json"
 }
@@ -171,9 +198,15 @@ aws lambda invoke \
 
 ```json
 {
-  "messages": ["text1", "text2"],     // Direct text input (array of strings)
-  "s3_file": "bucket/key",            // OR read input from S3
-  "save_to_s3": {                     // Optional: save embeddings to S3
+  "messages": [
+    "text1",
+    "text2"
+  ],
+  // Direct text input (array of strings)
+  "s3_file": "bucket/key",
+  // OR read input from S3
+  "save_to_s3": {
+    // Optional: save embeddings to S3
     "bucket": "bucket-name",
     "key": "path/to/output.json"
   }
@@ -186,9 +219,19 @@ Either `messages` or `s3_file` must be provided. `save_to_s3` is optional.
 
 ```json
 {
-  "embeddings": [[...], [...]],       // Array of embedding vectors
-  "dimension": 384,                   // Vector dimension
-  "s3_location": "s3://..."           // Only present if save_to_s3 was used
+  "embeddings": [
+    [
+      ...
+    ],
+    [
+      ...
+    ]
+  ],
+  // Array of embedding vectors
+  "dimension": 384,
+  // Vector dimension
+  "s3_location": "s3://..."
+  // Only present if save_to_s3 was used
 }
 ```
 
@@ -246,7 +289,7 @@ Push to ECR and create Lambda function:
 
 ```bash
 # Tag and push
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 123456789.dkr.ecr.us-east-1.amazonaws.com
+aws ecr get-login-password --region us-east-1 | docker login --name AWS --password-stdin 123456789.dkr.ecr.us-east-1.amazonaws.com
 docker tag serverless-vectorizer:bge-small 123456789.dkr.ecr.us-east-1.amazonaws.com/serverless-vectorizer:bge-small
 docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/serverless-vectorizer:bge-small
 
@@ -264,6 +307,11 @@ aws lambda update-function-code \
   --function-name serverless-vectorizer \
   --image-uri 123456789.dkr.ecr.us-east-1.amazonaws.com/serverless-vectorizer:bge-small
 ```
+
+## Acknowledgments
+
+This project is powered by [fastembed-rs](https://github.com/Anush008/fastembed-rs), a Rust library for fast,
+lightweight text embedding generation.
 
 ## License
 

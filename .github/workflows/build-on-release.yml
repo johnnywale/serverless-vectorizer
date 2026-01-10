@@ -127,7 +127,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           
-          file: embed/Dockerfile.variant
+          file: Dockerfile.variant
           platforms: ${{ matrix.platform }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}

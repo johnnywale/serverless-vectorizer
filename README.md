@@ -1,6 +1,6 @@
 # Serverless Vectorizer
 
-[![CI](https://github.com/johnnywale/serverless-vectorizer/actions/workflows/ci.yml/badge.svg)](https://github.com/johnnywale/serverless-vectorizer/actions/workflows/ci.yml)
+[![CI](https://github.com/johnnywale/serverless-vectorizer/actions/workflows/test-and-tag.yml/badge.svg)](https://github.com/johnnywale/serverless-vectorizer/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/johnnywale/serverless-vectorizer)](https://github.com/johnnywale/serverless-vectorizer/releases)
 [![License](https://img.shields.io/github/license/johnnywale/serverless-vectorizer)](LICENSE-MIT)
 [![Docker Pulls](https://img.shields.io/docker/pulls/johnnywale/serverless-vectorizer)](https://hub.docker.com/r/johnnywale/serverless-vectorizer)

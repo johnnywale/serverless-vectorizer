@@ -1,0 +1,140 @@
+name: Build and Push Docker Images
+
+on:
+  release:
+    types: [ published ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-docker:
+    name: Build Docker Base Image
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform:
+          - linux/amd64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          lfs: 'true'
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Get tag name
+        id: get_tag
+        run: |
+          if [ "${{ github.event_name }}" == "release" ]; then
+            TAG_NAME="${{ github.event.release.tag_name }}"
+          else
+            TAG_NAME="${{ inputs.tag }}"
+          fi
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Build and push base image
+        uses: docker/build-push-action@v6
+        with:
+          context: embed
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: |
+            ${{ secrets.DOCKER_USERNAME }}/serverless-vectorizer:base-${{ steps.get_tag.outputs.tag_name }}
+            ${{ secrets.DOCKER_USERNAME }}/serverless-vectorizer:base-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  build-variants:
+    name: Build Image Variants
+    runs-on: ubuntu-latest
+    needs: build-docker
+    strategy:
+      matrix:
+        include:
+          - variant: models--Qdrant--multilingual-e5-large-onnx
+            model_type: multilingual-e5-large
+            platform: linux/amd64
+          - variant: models--Xenova--all-mpnet-base-v2
+            model_type: all-mpnet-base-v2
+            platform: linux/amd64
+          - variant: models--Xenova--bge-base-en-v1.5
+            model_type: bge-base-en-v1.5
+            platform: linux/amd64
+          - variant: models--Xenova--bge-large-en-v1.5
+            model_type: bge-large-en-v1.5
+            platform: linux/amd64
+          - variant: models--Xenova--bge-small-en-v1.5
+            model_type: bge-small-en-v1.5
+            platform: linux/amd64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+          lfs: 'true'
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Get tag name
+        id: get_tag
+        run: |
+          if [ "${{ github.event_name }}" == "release" ]; then
+            TAG_NAME="${{ github.event.release.tag_name }}"
+          else
+            TAG_NAME="${{ inputs.tag }}"
+          fi
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKER_USERNAME }}/serverless-vectorizer
+          tags: |
+            type=raw,value=${{ steps.get_tag.outputs.tag_name }}-${{ matrix.model_type }}
+            type=raw,value=latest-${{ matrix.model_type }}
+            type=raw,value=${{ matrix.model_type }}
+
+      - name: Build and push variant image
+        uses: docker/build-push-action@v6
+        with:
+          context: embed
+          file: embed/Dockerfile.variant
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BASE_IMAGE=${{ secrets.DOCKER_USERNAME }}/serverless-vectorizer:base-${{ steps.get_tag.outputs.tag_name }}
+            VARIANT=${{ matrix.variant }}
+            MODEL_TYPE=${{ matrix.model_type }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -14,11 +14,11 @@ COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 
 COPY . .
-RUN cargo build --release --bin bootstrap
+RUN cargo build --release --bin bootstrap --features="aws"
 RUN cargo build --release --bin preload
 # The binary will be at target/release/bootstrap (or your binary name)
 RUN cp target/release/bootstrap bootstrap 2>/dev/null || \
-    cp target/release/embedding_service bootstrap
+    cp target/release/serverless_vectorizer bootstrap
 
 RUN cp target/release/preload preload
 

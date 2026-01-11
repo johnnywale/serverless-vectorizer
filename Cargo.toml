@@ -45,6 +45,10 @@ path = "src/bin/preload.rs"
 name = "embed-cli"
 path = "src/bin/cli.rs"
 
+[[bin]]
+name = "list-models"
+path = "src/bin/list-models.rs"
+
 [profile.release]
 opt-level = "z"
 lto = true

@@ -69,21 +69,222 @@ jobs:
     strategy:
       matrix:
         include:
-          - variant: models--Qdrant--multilingual-e5-large-onnx
-            model_type: multilingual-e5-large
-            platform: linux/amd64
           - variant: models--Xenova--all-mpnet-base-v2
             model_type: all-mpnet-base-v2
+            model_id: Xenova/all-mpnet-base-v2
+            dimension: 768
             platform: linux/amd64
-          - variant: models--Xenova--bge-base-en-v1.5
-            model_type: bge-base-en-v1.5
+          - variant: models--Alibaba-NLP--gte-large-en-v1.5
+            model_type: gte-large-en-v1.5
+            model_id: Alibaba-NLP/gte-large-en-v1.5
+            dimension: 1024
+            platform: linux/amd64
+          - variant: models--jinaai--jina-embeddings-v2-base-code
+            model_type: jina-embeddings-v2-base-code
+            model_id: jinaai/jina-embeddings-v2-base-code
+            dimension: 768
             platform: linux/amd64
           - variant: models--Xenova--bge-large-en-v1.5
             model_type: bge-large-en-v1.5
+            model_id: Xenova/bge-large-en-v1.5
+            dimension: 1024
+            platform: linux/amd64
+          - variant: models--intfloat--multilingual-e5-small
+            model_type: multilingual-e5-small
+            model_id: intfloat/multilingual-e5-small
+            dimension: 384
+            platform: linux/amd64
+          - variant: models--mixedbread-ai--mxbai-embed-large-v1
+            model_type: mxbai-embed-large-v1
+            model_id: mixedbread-ai/mxbai-embed-large-v1
+            dimension: 1024
+            platform: linux/amd64
+          - variant: models--snowflake--snowflake-arctic-embed-m-long
+            model_type: snowflake-arctic-embed-m-long
+            model_id: snowflake/snowflake-arctic-embed-m-long
+            dimension: 768
+            platform: linux/amd64
+          - variant: models--nomic-ai--nomic-embed-text-v1.5
+            model_type: nomic-embed-text-v1.5
+            model_id: nomic-ai/nomic-embed-text-v1.5
+            dimension: 768
+            platform: linux/amd64
+          - variant: models--Snowflake--snowflake-arctic-embed-m
+            model_type: snowflake-arctic-embed-m
+            model_id: Snowflake/snowflake-arctic-embed-m
+            dimension: 768
+            platform: linux/amd64
+          - variant: models--Xenova--bge-base-en-v1.5
+            model_type: bge-base-en-v1.5
+            model_id: Xenova/bge-base-en-v1.5
+            dimension: 768
             platform: linux/amd64
           - variant: models--Xenova--bge-small-en-v1.5
             model_type: bge-small-en-v1.5
+            model_id: Xenova/bge-small-en-v1.5
+            dimension: 384
             platform: linux/amd64
+          - variant: models--mixedbread-ai--mxbai-embed-large-v1
+            model_type: mxbai-embed-large-v1
+            model_id: mixedbread-ai/mxbai-embed-large-v1
+            dimension: 1024
+            platform: linux/amd64
+          - variant: models--onnx-community--embeddinggemma-300m-ONNX
+            model_type: embeddinggemma-300m-ONNX
+            model_id: onnx-community/embeddinggemma-300m-ONNX
+            dimension: 768
+            platform: linux/amd64
+          - variant: models--Qdrant--multilingual-e5-large-onnx
+            model_type: multilingual-e5-large-onnx
+            model_id: Qdrant/multilingual-e5-large-onnx
+            dimension: 1024
+            platform: linux/amd64
+          - variant: models--Qdrant--paraphrase-multilingual-MiniLM-L12-v2-onnx-Q
+            model_type: paraphrase-multilingual-MiniLM-L12-v2-onnx-Q
+            model_id: Qdrant/paraphrase-multilingual-MiniLM-L12-v2-onnx-Q
+            dimension: 384
+            platform: linux/amd64
+          - variant: models--Xenova--paraphrase-multilingual-mpnet-base-v2
+            model_type: paraphrase-multilingual-mpnet-base-v2
+            model_id: Xenova/paraphrase-multilingual-mpnet-base-v2
+            dimension: 768
+            platform: linux/amd64
+          - variant: models--lightonai--modernbert-embed-large
+            model_type: modernbert-embed-large
+            model_id: lightonai/modernbert-embed-large
+            dimension: 1024
+            platform: linux/amd64
+          - variant: models--Xenova--all-MiniLM-L12-v2
+            model_type: all-MiniLM-L12-v2
+            model_id: Xenova/all-MiniLM-L12-v2
+            dimension: 384
+            platform: linux/amd64
+          - variant: models--snowflake--snowflake-arctic-embed-m-long
+            model_type: snowflake-arctic-embed-m-long
+            model_id: snowflake/snowflake-arctic-embed-m-long
+            dimension: 768
+            platform: linux/amd64
+          - variant: models--snowflake--snowflake-arctic-embed-l
+            model_type: snowflake-arctic-embed-l
+            model_id: snowflake/snowflake-arctic-embed-l
+            dimension: 1024
+            platform: linux/amd64
+          - variant: models--Xenova--bge-large-zh-v1.5
+            model_type: bge-large-zh-v1.5
+            model_id: Xenova/bge-large-zh-v1.5
+            dimension: 1024
+            platform: linux/amd64
+          - variant: models--Qdrant--all-MiniLM-L6-v2-onnx
+            model_type: all-MiniLM-L6-v2-onnx
+            model_id: Qdrant/all-MiniLM-L6-v2-onnx
+            dimension: 384
+            platform: linux/amd64
+          - variant: models--intfloat--multilingual-e5-base
+            model_type: multilingual-e5-base
+            model_id: intfloat/multilingual-e5-base
+            dimension: 768
+            platform: linux/amd64
+          - variant: models--Alibaba-NLP--gte-large-en-v1.5
+            model_type: gte-large-en-v1.5
+            model_id: Alibaba-NLP/gte-large-en-v1.5
+            dimension: 1024
+            platform: linux/amd64
+          - variant: models--Snowflake--snowflake-arctic-embed-m
+            model_type: snowflake-arctic-embed-m
+            model_id: Snowflake/snowflake-arctic-embed-m
+            dimension: 768
+            platform: linux/amd64
+          - variant: models--snowflake--snowflake-arctic-embed-xs
+            model_type: snowflake-arctic-embed-xs
+            model_id: snowflake/snowflake-arctic-embed-xs
+            dimension: 384
+            platform: linux/amd64
+          - variant: models--BAAI--bge-m3
+            model_type: bge-m3
+            model_id: BAAI/bge-m3
+            dimension: 1024
+            platform: linux/amd64
+          - variant: models--snowflake--snowflake-arctic-embed-s
+            model_type: snowflake-arctic-embed-s
+            model_id: snowflake/snowflake-arctic-embed-s
+            dimension: 384
+            platform: linux/amd64
+          - variant: models--Qdrant--clip-ViT-B-32-text
+            model_type: clip-ViT-B-32-text
+            model_id: Qdrant/clip-ViT-B-32-text
+            dimension: 512
+            platform: linux/amd64
+          - variant: models--nomic-ai--nomic-embed-text-v1
+            model_type: nomic-embed-text-v1
+            model_id: nomic-ai/nomic-embed-text-v1
+            dimension: 768
+            platform: linux/amd64
+          - variant: models--Xenova--all-MiniLM-L6-v2
+            model_type: all-MiniLM-L6-v2
+            model_id: Xenova/all-MiniLM-L6-v2
+            dimension: 384
+            platform: linux/amd64
+          - variant: models--Alibaba-NLP--gte-base-en-v1.5
+            model_type: gte-base-en-v1.5
+            model_id: Alibaba-NLP/gte-base-en-v1.5
+            dimension: 768
+            platform: linux/amd64
+          - variant: models--Xenova--all-MiniLM-L12-v2
+            model_type: all-MiniLM-L12-v2
+            model_id: Xenova/all-MiniLM-L12-v2
+            dimension: 384
+            platform: linux/amd64
+          - variant: models--Qdrant--bge-base-en-v1.5-onnx-Q
+            model_type: bge-base-en-v1.5-onnx-Q
+            model_id: Qdrant/bge-base-en-v1.5-onnx-Q
+            dimension: 768
+            platform: linux/amd64
+          - variant: models--snowflake--snowflake-arctic-embed-s
+            model_type: snowflake-arctic-embed-s
+            model_id: snowflake/snowflake-arctic-embed-s
+            dimension: 384
+            platform: linux/amd64
+          - variant: models--Qdrant--bge-large-en-v1.5-onnx-Q
+            model_type: bge-large-en-v1.5-onnx-Q
+            model_id: Qdrant/bge-large-en-v1.5-onnx-Q
+            dimension: 1024
+            platform: linux/amd64
+          - variant: models--Qdrant--bge-small-en-v1.5-onnx-Q
+            model_type: bge-small-en-v1.5-onnx-Q
+            model_id: Qdrant/bge-small-en-v1.5-onnx-Q
+            dimension: 384
+            platform: linux/amd64
+          - variant: models--Alibaba-NLP--gte-base-en-v1.5
+            model_type: gte-base-en-v1.5
+            model_id: Alibaba-NLP/gte-base-en-v1.5
+            dimension: 768
+            platform: linux/amd64
+          - variant: models--snowflake--snowflake-arctic-embed-xs
+            model_type: snowflake-arctic-embed-xs
+            model_id: snowflake/snowflake-arctic-embed-xs
+            dimension: 384
+            platform: linux/amd64
+          - variant: models--snowflake--snowflake-arctic-embed-l
+            model_type: snowflake-arctic-embed-l
+            model_id: snowflake/snowflake-arctic-embed-l
+            dimension: 1024
+            platform: linux/amd64
+          - variant: models--Xenova--paraphrase-multilingual-MiniLM-L12-v2
+            model_type: paraphrase-multilingual-MiniLM-L12-v2
+            model_id: Xenova/paraphrase-multilingual-MiniLM-L12-v2
+            dimension: 384
+            platform: linux/amd64
+          - variant: models--nomic-ai--nomic-embed-text-v1.5
+            model_type: nomic-embed-text-v1.5
+            model_id: nomic-ai/nomic-embed-text-v1.5
+            dimension: 768
+            platform: linux/amd64
+          - variant: models--Xenova--bge-small-zh-v1.5
+            model_type: bge-small-zh-v1.5
+            model_id: Xenova/bge-small-zh-v1.5
+            dimension: 512
+            platform: linux/amd64
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -119,14 +320,13 @@ jobs:
         with:
           images: ${{ secrets.DOCKER_USERNAME }}/serverless-vectorizer
           tags: |
-            type=raw,value=${{ steps.get_tag.outputs.tag_name }}-${{ matrix.model_type }}
-            type=raw,value=latest-${{ matrix.model_type }}
-            type=raw,value=${{ matrix.model_type }}
+            type=raw,value=${{ steps.get_tag.outputs.tag_name }}-${{ matrix.model_id }}
+            type=raw,value=latest-${{ matrix.model_id }}
+            type=raw,value=${{ matrix.model_id }}
 
       - name: Build and push variant image
         uses: docker/build-push-action@v6
         with:
-          
           file: Dockerfile.variant
           platforms: ${{ matrix.platform }}
           push: true
@@ -134,7 +334,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             BASE_IMAGE=${{ secrets.DOCKER_USERNAME }}/serverless-vectorizer:base-${{ steps.get_tag.outputs.tag_name }}
-            VARIANT=${{ matrix.variant }}
-            MODEL_TYPE=${{ matrix.model_type }}
+            MODEL_ID=${{ matrix.model_id }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

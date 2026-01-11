@@ -11,7 +11,7 @@ pub mod types;
 pub mod pdf;
 
 // Re-export model types
-pub use model::{ModelType, ModelInfo, ModelRegistry, MODEL_REGISTRY};
+pub use model::{ModelType, ModelInfo, ModelRegistry, ModelCategory, TextModel, MODEL_REGISTRY};
 
 // Re-export embedding service
 pub use embeddings::{EmbeddingService, EmbeddingError, global_service, embed, embed_one};

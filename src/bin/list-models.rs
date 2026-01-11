@@ -114,8 +114,6 @@ fn model_id_to_display_name(model_id: &str) -> String {
         .join("-")
 }
 
-
-
 fn print_markdown_table(models: &[ModelInfo]) {
     use std::collections::HashMap;
 
@@ -139,8 +137,8 @@ fn print_markdown_table(models: &[ModelInfo]) {
     for (category_key, category_title) in &category_order {
         if let Some(category_models) = grouped.get(*category_key) {
             println!("### {}\n", category_title);
-            println!("| Model | Model ID | Dimension | Description |");
-            println!("|-------|----------|-----------|-------------|");
+            println!("| Model | Model ID | Dimension | Description | Docker | ");
+            println!("|-------|----------|-----------|-------------|-------------|");
 
             for model in category_models {
                 let display_name = model_id_to_display_name(&model.model_id);
@@ -149,10 +147,13 @@ fn print_markdown_table(models: &[ModelInfo]) {
                     .dimension
                     .map(|d| d.to_string())
                     .unwrap_or_else(|| "-".to_string());
-
+                let docker = format!(
+                    "johnnywalee/serverless-vectorizer:latest-{}",
+                    model.model_id
+                );
                 println!(
-                    "| {} | `{}` | {} | {} |",
-                    display_name, short_id, dimension, model.description
+                    "| {} | `{}` | {} | {} | `{}` |",
+                    display_name, short_id, dimension, model.description, docker
                 );
             }
             println!();

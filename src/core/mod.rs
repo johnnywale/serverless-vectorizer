@@ -6,6 +6,7 @@ pub mod similarity;
 pub mod clustering;
 pub mod chunking;
 pub mod types;
+pub mod image_utils;
 
 #[cfg(feature = "pdf")]
 pub mod pdf;
@@ -13,8 +14,30 @@ pub mod pdf;
 // Re-export model types
 pub use model::{ModelType, ModelInfo, ModelRegistry, ModelCategory, TextModel, MODEL_REGISTRY};
 
-// Re-export embedding service
-pub use embeddings::{EmbeddingService, EmbeddingError, global_service, embed, embed_one};
+// Re-export embedding services
+pub use embeddings::{
+    // Text embedding (existing)
+    EmbeddingService, EmbeddingError, global_service, embed, embed_one,
+    // Image embedding (new)
+    ImageEmbeddingService,
+    // Sparse embedding (new)
+    SparseEmbeddingService,
+    // Reranking (new)
+    RerankService,
+    // Unified service (new)
+    UnifiedEmbeddingService, UnifiedModel,
+};
+
+// Re-export image utilities
+pub use image_utils::{
+    ImageError, load_image_bytes, decode_base64_image, load_image_from_file,
+    load_images_bytes, is_valid_image_bytes, detect_image_format,
+};
+
+#[cfg(feature = "aws")]
+pub use image_utils::s3::{
+    load_image_from_s3, parse_s3_path, load_image_bytes_async, load_images_bytes_async,
+};
 
 // Re-export similarity functions
 pub use similarity::{
@@ -43,6 +66,12 @@ pub use types::{
     EmbeddingOutput, SearchResult, SearchResponse,
     ClusterInfo, ClusterMember, ClusterResponse,
     DistanceMatrixResponse, BenchmarkResult,
+    // Image types (new)
+    ImageInput, ImageEmbeddingOutput,
+    // Sparse types (new)
+    SparseEmbedding, SparseEmbeddingOutput,
+    // Rerank types (new)
+    RerankResult, RerankOutput,
 };
 
 // Re-export PDF utilities (when feature enabled)

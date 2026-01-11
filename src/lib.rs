@@ -10,7 +10,7 @@ mod lambda;
 // Re-export core functionality for external use
 pub use core::{
     // Model types
-    ModelType, ModelInfo, ModelRegistry, MODEL_REGISTRY,
+    ModelType, ModelInfo, ModelRegistry, ModelCategory, TextModel, MODEL_REGISTRY,
     // Embedding service
     EmbeddingService, EmbeddingError, global_service, embed, embed_one,
     // Similarity functions

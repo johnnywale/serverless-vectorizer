@@ -1,10 +1,11 @@
 // CLI tool for text embedding operations
 // Uses shared core functionality from the embedding_service library
 
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Parser, Subcommand};
+use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use serverless_vectorizer::{
     // Core functionality
-    ModelType, EmbeddingService,
+    ModelRegistry,
     cosine_similarity, l2_normalize, pairwise_similarity_matrix,
     top_k_similar, compute_stats, validate_embeddings,
     kmeans_cluster, chunk_text,
@@ -13,32 +14,30 @@ use serverless_vectorizer::{
     ClusterResponse, DistanceMatrixResponse, BenchmarkResult,
 };
 #[cfg(feature = "pdf")]
-use embedding_service::{extract_text_from_file, is_pdf_file};
+use serverless_vectorizer::{extract_text_from_file, is_pdf_file};
+use std::collections::HashMap;
 use std::fs;
 use std::io::{self, Read};
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::time::Instant;
 
-/// CLI model choice enum (maps to core ModelType)
-#[derive(Debug, Clone, ValueEnum)]
-enum ModelChoice {
-    BgeSmall,
-    BgeBase,
-    BgeLarge,
-    MultilingualE5,
-    AllMpnet,
+/// Resolve model name to EmbeddingModel, with helpful error on failure
+fn resolve_model(model_name: &str) -> Result<EmbeddingModel, String> {
+    ModelRegistry::find_text_model(model_name).ok_or_else(|| {
+        let mut msg = format!("Unknown model: '{}'\n\nAvailable text embedding models:\n", model_name);
+        for info in ModelRegistry::text_embedding_models() {
+            msg.push_str(&format!("  - {} ({}D)\n", info.model_id, info.dimension.unwrap_or(0)));
+        }
+        msg
+    })
 }
 
-impl ModelChoice {
-    fn to_model_type(&self) -> ModelType {
-        match self {
-            ModelChoice::BgeSmall => ModelType::BgeSmallEnV15,
-            ModelChoice::BgeBase => ModelType::BgeBaseEnV15,
-            ModelChoice::BgeLarge => ModelType::BgeLargeEnV15,
-            ModelChoice::MultilingualE5 => ModelType::MultilingualE5Large,
-            ModelChoice::AllMpnet => ModelType::AllMpnetBaseV2,
-        }
-    }
+/// Get model info (id and dimension) for display
+fn get_model_display_info(model: &EmbeddingModel) -> (String, usize) {
+    ModelRegistry::get_text_model_info(model)
+        .map(|info| (info.model_id, info.dimension.unwrap_or(0)))
+        .unwrap_or_else(|| ("unknown".to_string(), 0))
 }
 
 #[derive(Parser)]
@@ -67,8 +66,9 @@ enum Commands {
         pretty: bool,
         #[arg(long)]
         vectors_only: bool,
-        #[arg(long, value_enum, default_value = "bge-small")]
-        model: ModelChoice,
+        /// Model name (use 'info' command to list available models)
+        #[arg(long, default_value = "Xenova/bge-small-en-v1.5")]
+        model: String,
     },
 
     /// Compute similarity between two texts
@@ -77,8 +77,8 @@ enum Commands {
         text1: String,
         #[arg(long)]
         text2: String,
-        #[arg(long, value_enum, default_value = "bge-small")]
-        model: ModelChoice,
+        #[arg(long, default_value = "Xenova/bge-small-en-v1.5")]
+        model: String,
     },
 
     /// Embed multiple texts from a file
@@ -91,12 +91,16 @@ enum Commands {
         input_format: String,
         #[arg(long)]
         pretty: bool,
-        #[arg(long, value_enum, default_value = "bge-small")]
-        model: ModelChoice,
+        #[arg(long, default_value = "Xenova/bge-small-en-v1.5")]
+        model: String,
     },
 
     /// Show model information
-    Info,
+    Info {
+        /// Filter by model category (text, image, sparse, rerank)
+        #[arg(long)]
+        category: Option<String>,
+    },
 
     /// Search for similar texts in a corpus
     Search {
@@ -108,8 +112,8 @@ enum Commands {
         top_k: usize,
         #[arg(long, default_value = "texts")]
         corpus_format: String,
-        #[arg(long, value_enum, default_value = "bge-small")]
-        model: ModelChoice,
+        #[arg(long, default_value = "Xenova/bge-small-en-v1.5")]
+        model: String,
     },
 
     /// Compute pairwise similarity matrix
@@ -122,8 +126,8 @@ enum Commands {
         input_format: String,
         #[arg(long)]
         pretty: bool,
-        #[arg(long, value_enum, default_value = "bge-small")]
-        model: ModelChoice,
+        #[arg(long, default_value = "Xenova/bge-small-en-v1.5")]
+        model: String,
     },
 
     /// L2 normalize embeddings
@@ -170,8 +174,8 @@ enum Commands {
         iterations: usize,
         #[arg(long, default_value = "50")]
         text_length: usize,
-        #[arg(long, value_enum, default_value = "bge-small")]
-        model: ModelChoice,
+        #[arg(long, default_value = "Xenova/bge-small-en-v1.5")]
+        model: String,
     },
 
     /// Cluster texts using k-means
@@ -188,8 +192,8 @@ enum Commands {
         input_format: String,
         #[arg(long)]
         pretty: bool,
-        #[arg(long, value_enum, default_value = "bge-small")]
-        model: ModelChoice,
+        #[arg(long, default_value = "Xenova/bge-small-en-v1.5")]
+        model: String,
     },
 
     /// Extract text from PDF and optionally embed (requires 'pdf' feature)
@@ -224,14 +228,50 @@ enum Commands {
         pretty: bool,
 
         /// Embedding model to use (when --embed is used)
-        #[arg(long, value_enum, default_value = "bge-small")]
-        model: ModelChoice,
+        #[arg(long, default_value = "Xenova/bge-small-en-v1.5")]
+        model: String,
     },
+}
+
+// Embedding service with model caching
+struct EmbeddingService {
+    models: Mutex<HashMap<String, TextEmbedding>>,
+    show_progress: bool,
+}
+
+impl EmbeddingService {
+    fn new() -> Self {
+        Self {
+            models: Mutex::new(HashMap::new()),
+            show_progress: true,
+        }
+    }
+
+    fn embed(&self, texts: Vec<String>, model: EmbeddingModel) -> Result<Vec<Vec<f32>>, Box<dyn std::error::Error>> {
+        let model_key = format!("{:?}", model);
+        let mut models = self.models.lock().map_err(|e| e.to_string())?;
+
+        if !models.contains_key(&model_key) {
+            let text_embedding = TextEmbedding::try_new(
+                InitOptions::new(model.clone()).with_show_download_progress(self.show_progress),
+            )?;
+            models.insert(model_key.clone(), text_embedding);
+        }
+
+        let text_embedding = models.get_mut(&model_key).unwrap();
+        let embeddings = text_embedding.embed(texts, None)?;
+        Ok(embeddings)
+    }
+
+    fn embed_one(&self, text: &str, model: EmbeddingModel) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
+        let embeddings = self.embed(vec![text.to_string()], model)?;
+        embeddings.into_iter().next().ok_or_else(|| "No embedding generated".into())
+    }
 }
 
 // Global embedding service
 static SERVICE: std::sync::LazyLock<EmbeddingService> =
-    std::sync::LazyLock::new(|| EmbeddingService::new().with_progress(true));
+    std::sync::LazyLock::new(|| EmbeddingService::new());
 
 fn get_input(text: Option<String>, file: Option<PathBuf>) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     if let Some(t) = text {
@@ -286,9 +326,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match cli.command {
         Commands::Embed { text, file, output, format, pretty, vectors_only, model } => {
-            let model_type = model.to_model_type();
+            let embedding_model = resolve_model(&model)?;
+            let (model_id, _) = get_model_display_info(&embedding_model);
             let texts = get_input(text, file)?;
-            let embeddings = SERVICE.embed(texts, model_type)?;
+            let embeddings = SERVICE.embed(texts, embedding_model)?;
 
             if format == "binary" {
                 let mut bytes = Vec::new();
@@ -307,7 +348,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let result = if vectors_only {
                     serde_json::to_value(&embeddings)?
                 } else {
-                    let out = EmbeddingOutput::new(embeddings).with_model(model_type.display_name());
+                    let out = EmbeddingOutput::new(embeddings).with_model(&model_id);
                     serde_json::to_value(&out)?
                 };
                 let output_str = if pretty {
@@ -320,14 +361,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Commands::Similarity { text1, text2, model } => {
-            let model_type = model.to_model_type();
-            let embeddings = SERVICE.embed(vec![text1, text2], model_type)?;
+            let embedding_model = resolve_model(&model)?;
+            let embeddings = SERVICE.embed(vec![text1, text2], embedding_model)?;
             let similarity = cosine_similarity(&embeddings[0], &embeddings[1]);
             println!("{:.6}", similarity);
         }
 
         Commands::Batch { file, output, input_format, pretty, model } => {
-            let model_type = model.to_model_type();
+            let embedding_model = resolve_model(&model)?;
+            let (model_id, _) = get_model_display_info(&embedding_model);
             let texts = parse_texts_from_file(&file, &input_format)?;
 
             if texts.is_empty() {
@@ -336,10 +378,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             eprintln!("Embedding {} texts...", texts.len());
-            let embeddings = SERVICE.embed(texts, model_type)?;
+            let embeddings = SERVICE.embed(texts, embedding_model)?;
             eprintln!("Done.");
 
-            let out = EmbeddingOutput::new(embeddings).with_model(model_type.display_name());
+            let out = EmbeddingOutput::new(embeddings).with_model(&model_id);
             let output_str = if pretty {
                 serde_json::to_string_pretty(&out)?
             } else {
@@ -348,21 +390,57 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             write_output(&output_str, output)?;
         }
 
-        Commands::Info => {
-            println!("Embedding Model Information");
-            println!("===========================\n");
-            println!("Available Models:");
-            for model_type in ModelType::all() {
-                println!("  {:20} {:25} ({} dim, {})",
-                    model_type.id(),
-                    model_type.display_name(),
-                    model_type.dimension(),
-                    model_type.language()
-                );
+        Commands::Info { category } => {
+            println!("Embedding Model Information (fastembed)");
+            println!("=======================================\n");
+
+            let show_text = category.is_none() || category.as_deref() == Some("text");
+            let show_image = category.is_none() || category.as_deref() == Some("image");
+            let show_sparse = category.is_none() || category.as_deref() == Some("sparse");
+            let show_rerank = category.is_none() || category.as_deref() == Some("rerank");
+
+            if show_text {
+                let text_models = ModelRegistry::text_embedding_models();
+                println!("Text Embedding Models ({}):", text_models.len());
+                println!("{:-<60}", "");
+                for info in text_models {
+                    println!("  {:45} {:>5}D", info.model_id, info.dimension.unwrap_or(0));
+                }
+                println!();
             }
-            println!("\nDefault: {}", ModelType::default().id());
-            println!("Max Tokens: 512");
-            println!("Provider: BAAI/Sentence-Transformers (via fastembed)");
+
+            if show_image {
+                let image_models = ModelRegistry::image_embedding_models();
+                println!("Image Embedding Models ({}):", image_models.len());
+                println!("{:-<60}", "");
+                for info in image_models {
+                    println!("  {:45} {:>5}D", info.model_id, info.dimension.unwrap_or(0));
+                }
+                println!();
+            }
+
+            if show_sparse {
+                let sparse_models = ModelRegistry::sparse_text_embedding_models();
+                println!("Sparse Text Embedding Models ({}):", sparse_models.len());
+                println!("{:-<60}", "");
+                for info in sparse_models {
+                    println!("  {}", info.model_id);
+                }
+                println!();
+            }
+
+            if show_rerank {
+                let rerank_models = ModelRegistry::rerank_models();
+                println!("Reranking Models ({}):", rerank_models.len());
+                println!("{:-<60}", "");
+                for info in rerank_models {
+                    println!("  {}", info.model_id);
+                }
+                println!();
+            }
+
+            println!("Default: Xenova/bge-small-en-v1.5");
+            println!("Provider: fastembed (https://github.com/Anush008/fastembed-rs)");
             println!("\nModels are downloaded on first use if not cached.");
 
             #[cfg(feature = "pdf")]
@@ -372,7 +450,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Commands::Search { query, corpus, top_k, corpus_format, model } => {
-            let model_type = model.to_model_type();
+            let embedding_model = resolve_model(&model)?;
             let corpus_content = fs::read_to_string(&corpus)?;
 
             let (corpus_texts, corpus_embeddings): (Vec<String>, Vec<Vec<f32>>) =
@@ -395,7 +473,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             .collect()
                     };
                     eprintln!("Embedding {} corpus texts...", texts.len());
-                    let embeddings = SERVICE.embed(texts.clone(), model_type)?;
+                    let embeddings = SERVICE.embed(texts.clone(), embedding_model.clone())?;
                     (texts, embeddings)
                 };
 
@@ -404,7 +482,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 std::process::exit(1);
             }
 
-            let query_emb = SERVICE.embed_one(&query, model_type)?;
+            let query_emb = SERVICE.embed_one(&query, embedding_model)?;
             let similar = top_k_similar(&query_emb, &corpus_embeddings, top_k);
 
             let results: Vec<SearchResult> = similar.iter().enumerate()
@@ -421,7 +499,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Commands::DistanceMatrix { file, output, input_format, pretty, model } => {
-            let model_type = model.to_model_type();
+            let embedding_model = resolve_model(&model)?;
             let texts = parse_texts_from_file(&file, &input_format)?;
 
             if texts.is_empty() {
@@ -430,7 +508,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             eprintln!("Embedding {} texts...", texts.len());
-            let embeddings = SERVICE.embed(texts.clone(), model_type)?;
+            let embeddings = SERVICE.embed(texts.clone(), embedding_model)?;
             let matrix = pairwise_similarity_matrix(&embeddings);
 
             let response = DistanceMatrixResponse {
@@ -551,7 +629,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Commands::Benchmark { iterations, text_length, model } => {
-            let model_type = model.to_model_type();
+            let embedding_model = resolve_model(&model)?;
+            let (model_id, dimension) = get_model_display_info(&embedding_model);
 
             let sample_words = ["the", "quick", "brown", "fox", "jumps", "over", "lazy", "dog",
                 "hello", "world", "machine", "learning", "embedding", "vector",
@@ -563,28 +642,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             println!("Benchmark Configuration");
             println!("=======================");
-            println!("Model: {}", model_type.display_name());
+            println!("Model: {}", model_id);
             println!("Iterations: {}", iterations);
             println!("Text length: {} words\n", text_length);
 
             eprintln!("Warming up model...");
-            let _ = SERVICE.embed(vec![sample_text.clone()], model_type)?;
+            let _ = SERVICE.embed(vec![sample_text.clone()], embedding_model.clone())?;
 
             eprintln!("Running benchmark...");
             let start = Instant::now();
             for _ in 0..iterations {
-                let _ = SERVICE.embed(vec![sample_text.clone()], model_type)?;
+                let _ = SERVICE.embed(vec![sample_text.clone()], embedding_model.clone())?;
             }
             let elapsed = start.elapsed();
 
             let result = BenchmarkResult {
-                model: model_type.display_name().to_string(),
+                model: model_id,
                 iterations,
                 text_length,
                 total_ms: elapsed.as_millis(),
                 avg_ms: elapsed.as_millis() as f64 / iterations as f64,
                 throughput: 1000.0 / (elapsed.as_millis() as f64 / iterations as f64),
-                dimension: model_type.dimension(),
+                dimension,
             };
 
             println!("Results");
@@ -596,7 +675,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         Commands::Cluster { file, k, max_iter, output, input_format, pretty, model } => {
-            let model_type = model.to_model_type();
+            let embedding_model = resolve_model(&model)?;
             let texts = parse_texts_from_file(&file, &input_format)?;
 
             if texts.is_empty() {
@@ -610,7 +689,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             eprintln!("Embedding {} texts...", texts.len());
-            let embeddings = SERVICE.embed(texts.clone(), model_type)?;
+            let embeddings = SERVICE.embed(texts.clone(), embedding_model)?;
 
             eprintln!("Clustering into {} clusters...", k);
             let cluster_result = kmeans_cluster(&embeddings, k, max_iter);
@@ -635,7 +714,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 pdf_doc.text.len(), pdf_doc.page_count);
 
             if embed {
-                let model_type = model.to_model_type();
+                let embedding_model = resolve_model(&model)?;
+                let (model_id, _) = get_model_display_info(&embedding_model);
 
                 // Determine texts to embed
                 let texts: Vec<String> = if chunk {
@@ -651,7 +731,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
 
                 eprintln!("Embedding {} text segment(s)...", texts.len());
-                let embeddings = SERVICE.embed(texts.clone(), model_type)?;
+                let embeddings = SERVICE.embed(texts.clone(), embedding_model)?;
 
                 let result = serde_json::json!({
                     "source": file.to_string_lossy(),
@@ -660,7 +740,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "embeddings": embeddings,
                     "dimension": embeddings.first().map(|e| e.len()).unwrap_or(0),
                     "count": embeddings.len(),
-                    "model": model_type.display_name(),
+                    "model": model_id,
                     "chunked": chunk
                 });
 

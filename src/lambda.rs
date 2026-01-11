@@ -1,12 +1,12 @@
-
 // Lambda-specific handler and AWS integration
 
+use crate::core::model::ModelRegistry;
 use crate::core::{EmbeddingService, ModelType};
 use aws_config;
 use aws_sdk_s3 as s3;
 use lambda_runtime::{Error, LambdaEvent};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::env;
 use std::sync::LazyLock;
 
@@ -44,22 +44,31 @@ pub struct ApiGatewayResponse {
 }
 
 // Global embedding service for Lambda (initialized once per cold start)
-static EMBEDDING_SERVICE: LazyLock<EmbeddingService> = LazyLock::new(|| {
-    EmbeddingService::new()
-});
+static EMBEDDING_SERVICE: LazyLock<EmbeddingService> = LazyLock::new(|| EmbeddingService::new());
 
 /// Get the model type from environment or default
 fn get_model_type() -> ModelType {
-    let model_str = env::var("EMBEDDING_MODEL")
-        .unwrap_or_else(|_| "bge-small-en-v1.5".to_string());
+    let model_str = env::var("MODEL_ID").unwrap_or_else(|_| "Xenova/bge-small-zh-v1.5".to_string());
 
-    ModelType::from_str(&model_str).unwrap_or_else(|| {
+    // Try to parse as legacy ModelType first
+    if let Some(model_type) = ModelType::from_str(&model_str) {
+        return model_type;
+    }
+
+    // Check if it's a valid model in fastembed's registry
+    if ModelRegistry::find_text_model(&model_str).is_some() {
+        eprintln!(
+            "Note: Model '{}' is supported by fastembed but not in legacy ModelType. Using BGE-Small as fallback.",
+            model_str
+        );
+    } else {
         eprintln!(
             "Warning: Unknown model '{}', falling back to BGE-Small",
             model_str
         );
-        ModelType::default()
-    })
+    }
+
+    ModelType::default()
 }
 
 async fn read_from_s3(s3_client: &s3::Client, s3_path: &str) -> Result<String, Error> {

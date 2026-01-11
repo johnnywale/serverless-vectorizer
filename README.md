@@ -1,6 +1,6 @@
 # Serverless Vectorizer
 
-[![CI](https://github.com/johnnywale/serverless-vectorizer/actions/workflows/test-and-tag.yml/badge.svg)](https://github.com/johnnywale/serverless-vectorizer/actions/workflows/ci.yml)
+[![CI](https://github.com/johnnywale/serverless-vectorizer/actions/workflows/test.yml/badge.svg)](https://github.com/johnnywale/serverless-vectorizer/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/johnnywale/serverless-vectorizer)](https://github.com/johnnywale/serverless-vectorizer/releases)
 [![License](https://img.shields.io/github/license/johnnywale/serverless-vectorizer)](LICENSE-MIT)
 [![Docker Pulls](https://img.shields.io/docker/pulls/johnnywale/serverless-vectorizer)](https://hub.docker.com/r/johnnywale/serverless-vectorizer)
@@ -196,11 +196,58 @@ cargo run --bin list-models -- -c all
 
 
 
-## Usage
+## Lambda API Reference
 
-The Lambda supports two invocation methods:
+The Lambda automatically detects the model type from the `MODEL_ID` environment variable and routes requests accordingly. Each model type has its own request/response format.
 
-### Direct Lambda Invocation
+### Model Type Auto-Detection
+
+| MODEL_ID Pattern | Model Type | Use Case |
+|-----------------|------------|----------|
+| Text embedding models | `text` | Semantic search, similarity |
+| `Qdrant/clip-ViT-B-32-vision`, etc. | `image` | Image similarity, visual search |
+| `Qdrant/Splade_PP_en_v1`, etc. | `sparse` | Hybrid search, keyword matching |
+| `BAAI/bge-reranker-*`, etc. | `rerank` | Re-ranking search results |
+
+---
+
+## Text Embeddings
+
+Generate dense vector embeddings for text. Default model type.
+
+### Request
+
+```json
+{
+  "messages": ["Hello world", "How are you?"]
+}
+```
+
+Or read from S3:
+
+```json
+{
+  "s3_file": "my-bucket/path/to/texts.json"
+}
+```
+
+### Response
+
+```json
+{
+  "embeddings": [
+    [0.123, 0.456, -0.789, ...],
+    [0.321, 0.654, -0.987, ...]
+  ],
+  "dimension": 384,
+  "model_type": "text",
+  "count": 2
+}
+```
+
+### Examples
+
+**Direct Lambda Invocation:**
 
 ```bash
 aws lambda invoke \
@@ -209,27 +256,19 @@ aws lambda invoke \
   response.json
 ```
 
-**Response:**
+**Local Docker Testing:**
 
-```json
-{
-  "embeddings": [
-    [
-      0.123,
-      0.456,
-      ...
-    ],
-    [
-      0.789,
-      0.012,
-      ...
-    ]
-  ],
-  "dimension": 384
-}
+```bash
+# Start the container
+docker run -p 9000:8080 johnnywalee/serverless-vectorizer:latest-Xenova/bge-small-en-v1.5
+
+# Send request
+curl -X POST "http://localhost:9000/2015-03-31/functions/function/invocations" \
+  -H "Content-Type: application/json" \
+  -d '{"messages": ["Hello world", "How are you?"]}'
 ```
 
-### API Gateway (POST /embed)
+**API Gateway:**
 
 ```bash
 curl -X POST https://your-api.execute-api.region.amazonaws.com/embed \
@@ -237,27 +276,288 @@ curl -X POST https://your-api.execute-api.region.amazonaws.com/embed \
   -d '{"messages": ["Hello world", "How are you?"]}'
 ```
 
+---
+
+## Image Embeddings
+
+Generate dense vector embeddings for images. Requires an image embedding model (e.g., `Qdrant/clip-ViT-B-32-vision`).
+
+### Request
+
+Images can be provided as base64-encoded data or S3 paths:
+
+```json
+{
+  "images": [
+    {"base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ..."},
+    {"s3_path": "my-bucket/images/photo.jpg"}
+  ]
+}
+```
+
+Or using `s3_images` for multiple S3 paths:
+
+```json
+{
+  "s3_images": [
+    "my-bucket/images/photo1.jpg",
+    "my-bucket/images/photo2.png"
+  ]
+}
+```
+
+### Response
+
+```json
+{
+  "embeddings": [
+    [0.123, 0.456, -0.789, ...],
+    [0.321, 0.654, -0.987, ...]
+  ],
+  "dimension": 512,
+  "model_type": "image",
+  "count": 2
+}
+```
+
+### Examples
+
+**Build Image Embedding Container:**
+
+```bash
+docker build \
+  --build-arg BASE_IMAGE=johnnywalee/serverless-vectorizer:base-latest \
+  --build-arg MODEL_ID=Qdrant/clip-ViT-B-32-vision \
+  -f Dockerfile.variant \
+  -t serverless-vectorizer:clip .
+```
+
+**Local Docker Testing:**
+
+```bash
+# Start the container
+docker run -p 9000:8080 serverless-vectorizer:clip
+
+# Send request with base64 image
+curl -X POST "http://localhost:9000/2015-03-31/functions/function/invocations" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "images": [
+      {"base64": "'"$(base64 -w 0 image.png)"'"}
+    ]
+  }'
+```
+
+**Lambda with S3 Images:**
+
+```bash
+aws lambda invoke \
+  --function-name serverless-vectorizer-image \
+  --payload '{
+    "s3_images": ["my-bucket/images/photo1.jpg", "my-bucket/images/photo2.jpg"]
+  }' \
+  response.json
+```
+
+---
+
+## Sparse Embeddings
+
+Generate sparse vector embeddings for text using SPLADE models. Useful for hybrid search combining dense and sparse vectors.
+
+### Request
+
+```json
+{
+  "messages": ["The quick brown fox jumps over the lazy dog"]
+}
+```
+
+### Response
+
+```json
+{
+  "sparse_embeddings": [
+    {
+      "indices": [102, 456, 789, 1234, 5678],
+      "values": [0.5, 0.3, 0.8, 0.2, 0.9]
+    }
+  ],
+  "model_type": "sparse",
+  "count": 1
+}
+```
+
+The sparse embedding contains:
+- `indices`: Token indices with non-zero weights
+- `values`: Corresponding weights for each token
+
+### Examples
+
+**Build Sparse Embedding Container:**
+
+```bash
+docker build \
+  --build-arg BASE_IMAGE=johnnywalee/serverless-vectorizer:base-latest \
+  --build-arg MODEL_ID=Qdrant/Splade_PP_en_v1 \
+  -f Dockerfile.variant \
+  -t serverless-vectorizer:splade .
+```
+
+**Local Docker Testing:**
+
+```bash
+# Start the container
+docker run -p 9000:8080 serverless-vectorizer:splade
+
+# Send request
+curl -X POST "http://localhost:9000/2015-03-31/functions/function/invocations" \
+  -H "Content-Type: application/json" \
+  -d '{"messages": ["Machine learning is a subset of artificial intelligence"]}'
+```
+
+**Lambda Invocation:**
+
+```bash
+aws lambda invoke \
+  --function-name serverless-vectorizer-sparse \
+  --payload '{"messages": ["Machine learning is a subset of artificial intelligence"]}' \
+  response.json
+```
+
+---
+
+## Reranking
+
+Re-rank documents based on relevance to a query. Useful for improving search results.
+
+### Request
+
+```json
+{
+  "query": "What is machine learning?",
+  "documents": [
+    "Machine learning is a subset of AI that enables computers to learn from data.",
+    "The weather today is sunny and warm.",
+    "Deep learning uses neural networks with many layers."
+  ],
+  "top_k": 2,
+  "return_documents": true
+}
+```
+
+Parameters:
+- `query`: The search query
+- `documents`: Array of documents to rank
+- `top_k` (optional): Return only top K results
+- `return_documents` (optional, default: true): Include document text in response
+
+### Response
+
+```json
+{
+  "rankings": [
+    {
+      "index": 0,
+      "score": 0.95,
+      "document": "Machine learning is a subset of AI that enables computers to learn from data."
+    },
+    {
+      "index": 2,
+      "score": 0.82,
+      "document": "Deep learning uses neural networks with many layers."
+    }
+  ],
+  "model_type": "rerank",
+  "count": 2
+}
+```
+
+Results are sorted by score in descending order.
+
+### Examples
+
+**Build Reranking Container:**
+
+```bash
+docker build \
+  --build-arg BASE_IMAGE=johnnywalee/serverless-vectorizer:base-latest \
+  --build-arg MODEL_ID=BAAI/bge-reranker-base \
+  -f Dockerfile.variant \
+  -t serverless-vectorizer:reranker .
+```
+
+**Local Docker Testing:**
+
+```bash
+# Start the container
+docker run -p 9000:8080 serverless-vectorizer:reranker
+
+# Send request
+curl -X POST "http://localhost:9000/2015-03-31/functions/function/invocations" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "What is machine learning?",
+    "documents": [
+      "Machine learning is a subset of AI that enables computers to learn from data.",
+      "The weather today is sunny and warm.",
+      "Deep learning uses neural networks with many layers."
+    ],
+    "top_k": 2
+  }'
+```
+
+**Lambda Invocation:**
+
+```bash
+aws lambda invoke \
+  --function-name serverless-vectorizer-rerank \
+  --payload '{
+    "query": "Capital cities of Europe",
+    "documents": [
+      "Paris is the capital of France.",
+      "Pizza is a popular Italian food.",
+      "London is the capital of England.",
+      "Berlin is the capital of Germany."
+    ],
+    "top_k": 3
+  }' \
+  response.json
+```
+
+---
+
 ## S3 Integration
+
+All model types support reading from and writing to S3.
 
 ### Read Input from S3
 
-Instead of passing messages directly, read text from an S3 file:
+**Text Embeddings:**
 
 ```bash
 aws lambda invoke \
   --function-name serverless-vectorizer \
-  --payload '{"s3_file": "my-bucket/path/to/input.txt"}' \
+  --payload '{"s3_file": "my-bucket/path/to/texts.json"}' \
   response.json
 ```
 
 The S3 file can contain:
-
 - Plain text (embedded as single document)
 - JSON array of strings (each string embedded separately)
 
+**Image Embeddings:**
+
+```bash
+aws lambda invoke \
+  --function-name serverless-vectorizer-image \
+  --payload '{"s3_images": ["my-bucket/images/photo1.jpg", "my-bucket/images/photo2.png"]}' \
+  response.json
+```
+
 ### Save Output to S3
 
-Save embeddings directly to S3:
+Save embeddings directly to S3 (text and image models only):
 
 ```bash
 aws lambda invoke \
@@ -276,14 +576,10 @@ aws lambda invoke \
 
 ```json
 {
-  "embeddings": [
-    [
-      0.123,
-      0.456,
-      ...
-    ]
-  ],
+  "embeddings": [[0.123, 0.456, ...]],
   "dimension": 384,
+  "model_type": "text",
+  "count": 1,
   "s3_location": "s3://my-output-bucket/embeddings/output.json"
 }
 ```
@@ -305,44 +601,72 @@ aws lambda invoke \
   response.json
 ```
 
-## Request Schema
+---
+
+## Complete Request Schema
 
 ```json
 {
-  "messages": [
-    "text1",
-    "text2"
+  // === Text Embedding Input ===
+  "messages": ["text1", "text2"],           // Direct text input
+  "s3_file": "bucket/key",                  // OR read text from S3
+
+  // === Image Embedding Input ===
+  "images": [                               // Image input array
+    {"base64": "..."},                      // Base64 encoded image
+    {"s3_path": "bucket/key"}               // OR S3 path to image
   ],
-  // Direct text input (array of strings)
-  "s3_file": "bucket/key",
-  // OR read input from S3
-  "save_to_s3": {
-    // Optional: save embeddings to S3
+  "s3_images": ["bucket/key1", "bucket/key2"], // OR S3 paths array
+
+  // === Reranking Input ===
+  "query": "search query",                  // Query for reranking
+  "documents": ["doc1", "doc2"],            // Documents to rank
+  "top_k": 5,                               // Return top K results (optional)
+  "return_documents": true,                 // Include docs in response (optional)
+
+  // === Output Options ===
+  "save_to_s3": {                           // Save results to S3 (optional)
     "bucket": "bucket-name",
     "key": "path/to/output.json"
   }
 }
 ```
 
-Either `messages` or `s3_file` must be provided. `save_to_s3` is optional.
+## Complete Response Schema
 
-## Response Schema
+**Text/Image Embeddings:**
 
 ```json
 {
-  "embeddings": [
-    [
-      ...
-    ],
-    [
-      ...
-    ]
+  "embeddings": [[...], [...]],             // Dense embedding vectors
+  "dimension": 384,                         // Vector dimension
+  "model_type": "text",                     // "text" or "image"
+  "count": 2,                               // Number of embeddings
+  "s3_location": "s3://..."                 // If save_to_s3 was used
+}
+```
+
+**Sparse Embeddings:**
+
+```json
+{
+  "sparse_embeddings": [
+    {"indices": [...], "values": [...]}
   ],
-  // Array of embedding vectors
-  "dimension": 384,
-  // Vector dimension
-  "s3_location": "s3://..."
-  // Only present if save_to_s3 was used
+  "model_type": "sparse",
+  "count": 1
+}
+```
+
+**Reranking:**
+
+```json
+{
+  "rankings": [
+    {"index": 0, "score": 0.95, "document": "..."}
+  ],
+  "model_type": "rerank",
+  "count": 2
 }
 ```
 
@@ -363,12 +687,18 @@ cargo test --test unit_tests --features aws
 # Start LocalStack for integration tests
 docker-compose up -d
 
-# Run integration tests
-AWS_ENDPOINT_URL=http://localhost:4566 \
-AWS_ACCESS_KEY_ID=test \
-AWS_SECRET_ACCESS_KEY=test \
-AWS_DEFAULT_REGION=us-east-1 \
-cargo test --test integration_tests --features aws -- --test-threads=1
+# Run all integration tests (can run in parallel - each has its own MODEL_ID)
+cargo test --features aws --test integration_text_tests &
+cargo test --features aws --test integration_image_tests &
+cargo test --features aws --test integration_sparse_tests &
+cargo test --features aws --test integration_rerank_tests &
+wait
+
+# Or run specific model type tests
+cargo test --features aws --test integration_text_tests    # Text embeddings
+cargo test --features aws --test integration_image_tests   # Image embeddings
+cargo test --features aws --test integration_sparse_tests  # Sparse embeddings
+cargo test --features aws --test integration_rerank_tests  # Reranking
 
 # Stop LocalStack
 docker-compose down
@@ -384,11 +714,15 @@ docker-compose down
 │   ├── lib.rs               # Library exports
 │   └── core/
 │       ├── model.rs         # Model definitions and registry
-│       ├── embeddings.rs    # Embedding service
+│       ├── embeddings.rs    # Embedding services (text, image, sparse, rerank)
+│       ├── image_utils.rs   # Image loading utilities
 │       └── ...
 ├── tests/
-│   ├── unit_tests.rs
-│   └── integration_tests.rs
+│   ├── unit_tests.rs                 # Unit tests
+│   ├── integration_text_tests.rs     # Text embedding integration tests
+│   ├── integration_image_tests.rs    # Image embedding integration tests
+│   ├── integration_sparse_tests.rs   # Sparse embedding integration tests
+│   └── integration_rerank_tests.rs   # Reranking integration tests
 ├── Dockerfile               # Base image
 ├── Dockerfile.variant       # Model-specific variant builder
 └── docker-compose.yaml      # LocalStack for testing

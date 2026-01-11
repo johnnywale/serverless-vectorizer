@@ -12,6 +12,11 @@ use serverless_vectorizer::{
     // Types
     EmbeddingOutput, SearchResult, SearchResponse,
     ClusterResponse, DistanceMatrixResponse, BenchmarkResult,
+    // New types for image/sparse/rerank
+    ImageEmbeddingOutput, SparseEmbeddingOutput,
+    RerankOutput,
+    // New services
+    ImageEmbeddingService, SparseEmbeddingService, RerankService,
 };
 #[cfg(feature = "pdf")]
 use serverless_vectorizer::{extract_text_from_file, is_pdf_file};
@@ -230,6 +235,98 @@ enum Commands {
         /// Embedding model to use (when --embed is used)
         #[arg(long, default_value = "Xenova/bge-small-en-v1.5")]
         model: String,
+    },
+
+    /// Generate embeddings for images
+    EmbedImage {
+        /// Path to image file
+        #[arg(short, long)]
+        image: PathBuf,
+
+        /// Output file path
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Image embedding model to use (use 'info --category image' to list)
+        #[arg(long, default_value = "Qdrant/clip-ViT-B-32-vision")]
+        model: String,
+
+        /// Pretty print JSON output
+        #[arg(long)]
+        pretty: bool,
+    },
+
+    /// Batch embed multiple images from a directory
+    BatchImages {
+        /// Directory containing images
+        #[arg(short, long)]
+        directory: PathBuf,
+
+        /// Output file path
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Image embedding model to use
+        #[arg(long, default_value = "Qdrant/clip-ViT-B-32-vision")]
+        model: String,
+
+        /// Pretty print JSON output
+        #[arg(long)]
+        pretty: bool,
+    },
+
+    /// Generate sparse embeddings for text (useful for hybrid search)
+    EmbedSparse {
+        /// Text to embed
+        #[arg(short, long)]
+        text: Option<String>,
+
+        /// File containing texts (one per line or JSON array)
+        #[arg(short, long)]
+        file: Option<PathBuf>,
+
+        /// Output file path
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Sparse embedding model to use (use 'info --category sparse' to list)
+        #[arg(long, default_value = "Qdrant/bm42-all-minilm-l6-v2-attentions")]
+        model: String,
+
+        /// Pretty print JSON output
+        #[arg(long)]
+        pretty: bool,
+    },
+
+    /// Rerank documents by relevance to a query
+    Rerank {
+        /// The search query
+        #[arg(short, long)]
+        query: String,
+
+        /// Documents to rerank (can be specified multiple times)
+        #[arg(short, long)]
+        documents: Vec<String>,
+
+        /// File containing documents (one per line or JSON array)
+        #[arg(short, long)]
+        file: Option<PathBuf>,
+
+        /// Output file path
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Number of top results to return
+        #[arg(short = 'k', long)]
+        top_k: Option<usize>,
+
+        /// Reranking model to use (use 'info --category rerank' to list)
+        #[arg(long, default_value = "BAAI/bge-reranker-base")]
+        model: String,
+
+        /// Pretty print JSON output
+        #[arg(long)]
+        pretty: bool,
     },
 }
 
@@ -766,6 +863,160 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 };
                 write_output(&output_str, output)?;
             }
+        }
+
+        Commands::EmbedImage { image, output, model, pretty } => {
+            // Resolve image model
+            let image_model = ModelRegistry::find_image_model(&model)
+                .ok_or_else(|| format!("Unknown image model: '{}'\n\nUse 'info --category image' to list available models", model))?;
+
+            // Load image bytes
+            let image_bytes = fs::read(&image)?;
+            eprintln!("Loaded image: {:?} ({} bytes)", image, image_bytes.len());
+
+            // Create service and generate embedding
+            let service = ImageEmbeddingService::new().with_progress(true);
+            let embeddings = service.embed_images_with_model(&[image_bytes], image_model)
+                .map_err(|e| format!("Image embedding failed: {}", e))?;
+
+            let out = ImageEmbeddingOutput::new(embeddings).with_model(&model);
+            let output_str = if pretty {
+                serde_json::to_string_pretty(&out)?
+            } else {
+                serde_json::to_string(&out)?
+            };
+            write_output(&output_str, output)?;
+        }
+
+        Commands::BatchImages { directory, output, model, pretty } => {
+            // Resolve image model
+            let image_model = ModelRegistry::find_image_model(&model)
+                .ok_or_else(|| format!("Unknown image model: '{}'\n\nUse 'info --category image' to list available models", model))?;
+
+            // Find all images in directory
+            let extensions = ["jpg", "jpeg", "png", "gif", "webp", "bmp"];
+            let mut image_paths: Vec<PathBuf> = Vec::new();
+
+            for entry in fs::read_dir(&directory)? {
+                let entry = entry?;
+                let path = entry.path();
+                if let Some(ext) = path.extension() {
+                    if extensions.iter().any(|e| ext.eq_ignore_ascii_case(e)) {
+                        image_paths.push(path);
+                    }
+                }
+            }
+
+            if image_paths.is_empty() {
+                eprintln!("No images found in {:?}", directory);
+                std::process::exit(1);
+            }
+
+            eprintln!("Found {} images in {:?}", image_paths.len(), directory);
+
+            // Load all images
+            let mut image_bytes_list: Vec<Vec<u8>> = Vec::new();
+            for path in &image_paths {
+                let bytes = fs::read(path)?;
+                image_bytes_list.push(bytes);
+            }
+
+            // Generate embeddings
+            let service = ImageEmbeddingService::new().with_progress(true);
+            let embeddings = service.embed_images_with_model(&image_bytes_list.iter().map(|v| v.clone()).collect::<Vec<_>>().as_slice(), image_model)
+                .map_err(|e| format!("Image embedding failed: {}", e))?;
+
+            let result = serde_json::json!({
+                "images": image_paths.iter().map(|p| p.to_string_lossy().to_string()).collect::<Vec<_>>(),
+                "embeddings": embeddings,
+                "dimension": embeddings.first().map(|e| e.len()).unwrap_or(0),
+                "count": embeddings.len(),
+                "model": model
+            });
+
+            let output_str = if pretty {
+                serde_json::to_string_pretty(&result)?
+            } else {
+                serde_json::to_string(&result)?
+            };
+            write_output(&output_str, output)?;
+        }
+
+        Commands::EmbedSparse { text, file, output, model, pretty } => {
+            // Resolve sparse model
+            let sparse_model = ModelRegistry::find_sparse_model(&model)
+                .ok_or_else(|| format!("Unknown sparse model: '{}'\n\nUse 'info --category sparse' to list available models", model))?;
+
+            // Get texts to embed
+            let texts = get_input(text, file)?;
+
+            if texts.is_empty() {
+                eprintln!("No texts provided");
+                std::process::exit(1);
+            }
+
+            eprintln!("Generating sparse embeddings for {} text(s)...", texts.len());
+
+            // Generate sparse embeddings
+            let service = SparseEmbeddingService::new().with_progress(true);
+            let sparse_embeddings = service.embed_with_model(texts, sparse_model)
+                .map_err(|e| format!("Sparse embedding failed: {}", e))?;
+
+            let out = SparseEmbeddingOutput::new(sparse_embeddings).with_model(&model);
+            let output_str = if pretty {
+                serde_json::to_string_pretty(&out)?
+            } else {
+                serde_json::to_string(&out)?
+            };
+            write_output(&output_str, output)?;
+        }
+
+        Commands::Rerank { query, documents, file, output, top_k, model, pretty } => {
+            // Resolve rerank model
+            let rerank_model = ModelRegistry::find_rerank_model(&model)
+                .ok_or_else(|| format!("Unknown rerank model: '{}'\n\nUse 'info --category rerank' to list available models", model))?;
+
+            // Collect documents
+            let mut docs: Vec<String> = documents;
+
+            // Add documents from file if provided
+            if let Some(file_path) = file {
+                let content = fs::read_to_string(&file_path)?;
+                let file_docs: Vec<String> = if content.trim().starts_with('[') {
+                    serde_json::from_str(&content)?
+                } else {
+                    content.lines()
+                        .filter(|l| !l.trim().is_empty())
+                        .map(|l| l.to_string())
+                        .collect()
+                };
+                docs.extend(file_docs);
+            }
+
+            if docs.is_empty() {
+                eprintln!("No documents provided");
+                std::process::exit(1);
+            }
+
+            eprintln!("Reranking {} document(s) for query: \"{}\"", docs.len(), query);
+
+            // Perform reranking
+            let service = RerankService::new().with_progress(true);
+            let mut results = service.rerank_with_model(&query, docs, true, rerank_model)
+                .map_err(|e| format!("Reranking failed: {}", e))?;
+
+            // Apply top_k if specified
+            if let Some(k) = top_k {
+                results.truncate(k);
+            }
+
+            let out = RerankOutput::new(query, results).with_model(&model);
+            let output_str = if pretty {
+                serde_json::to_string_pretty(&out)?
+            } else {
+                serde_json::to_string(&out)?
+            };
+            write_output(&output_str, output)?;
         }
     }
 

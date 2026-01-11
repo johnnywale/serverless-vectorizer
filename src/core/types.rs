@@ -2,6 +2,201 @@
 
 use serde::{Deserialize, Serialize};
 
+// ============================================================================
+// Image Embedding Types
+// ============================================================================
+
+/// Image input - supports both base64 encoded data and file paths
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum ImageInput {
+    /// Base64 encoded image data
+    Base64 { base64: String },
+    /// Path to image file (local or S3)
+    FilePath { path: String },
+    /// S3 path to image
+    S3Path { s3_path: String },
+}
+
+impl ImageInput {
+    /// Create from base64 string
+    pub fn from_base64(data: String) -> Self {
+        ImageInput::Base64 { base64: data }
+    }
+
+    /// Create from file path
+    pub fn from_path(path: impl Into<String>) -> Self {
+        ImageInput::FilePath { path: path.into() }
+    }
+
+    /// Create from S3 path
+    pub fn from_s3(s3_path: impl Into<String>) -> Self {
+        ImageInput::S3Path { s3_path: s3_path.into() }
+    }
+}
+
+/// Image embedding output
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ImageEmbeddingOutput {
+    /// The embedding vectors
+    pub embeddings: Vec<Vec<f32>>,
+    /// Dimension of each embedding
+    pub dimension: usize,
+    /// Number of embeddings
+    pub count: usize,
+    /// Model used
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+}
+
+impl ImageEmbeddingOutput {
+    pub fn new(embeddings: Vec<Vec<f32>>) -> Self {
+        let dimension = embeddings.first().map(|e| e.len()).unwrap_or(0);
+        let count = embeddings.len();
+        ImageEmbeddingOutput {
+            embeddings,
+            dimension,
+            count,
+            model: None,
+        }
+    }
+
+    pub fn with_model(mut self, model: &str) -> Self {
+        self.model = Some(model.to_string());
+        self
+    }
+}
+
+// ============================================================================
+// Sparse Embedding Types
+// ============================================================================
+
+/// Sparse embedding with indices and values
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SparseEmbedding {
+    /// Token indices with non-zero values
+    pub indices: Vec<usize>,
+    /// Values at those indices
+    pub values: Vec<f32>,
+}
+
+impl SparseEmbedding {
+    pub fn new(indices: Vec<usize>, values: Vec<f32>) -> Self {
+        SparseEmbedding { indices, values }
+    }
+
+    /// Get the number of non-zero elements
+    pub fn nnz(&self) -> usize {
+        self.indices.len()
+    }
+
+    /// Convert to dense vector of given size
+    pub fn to_dense(&self, size: usize) -> Vec<f32> {
+        let mut dense = vec![0.0; size];
+        for (idx, val) in self.indices.iter().zip(self.values.iter()) {
+            if *idx < size {
+                dense[*idx] = *val;
+            }
+        }
+        dense
+    }
+}
+
+/// Sparse embedding output with metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SparseEmbeddingOutput {
+    /// Sparse embeddings
+    pub embeddings: Vec<SparseEmbedding>,
+    /// Number of embeddings
+    pub count: usize,
+    /// Model used
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+}
+
+impl SparseEmbeddingOutput {
+    pub fn new(embeddings: Vec<SparseEmbedding>) -> Self {
+        let count = embeddings.len();
+        SparseEmbeddingOutput {
+            embeddings,
+            count,
+            model: None,
+        }
+    }
+
+    pub fn with_model(mut self, model: &str) -> Self {
+        self.model = Some(model.to_string());
+        self
+    }
+}
+
+// ============================================================================
+// Reranking Types
+// ============================================================================
+
+/// Single rerank result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RerankResult {
+    /// Original index in the documents array
+    pub index: usize,
+    /// Relevance score (higher is more relevant)
+    pub score: f32,
+    /// The document text
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document: Option<String>,
+}
+
+impl RerankResult {
+    pub fn new(index: usize, score: f32) -> Self {
+        RerankResult {
+            index,
+            score,
+            document: None,
+        }
+    }
+
+    pub fn with_document(mut self, document: String) -> Self {
+        self.document = Some(document);
+        self
+    }
+}
+
+/// Rerank response with all results
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RerankOutput {
+    /// The query used for reranking
+    pub query: String,
+    /// Ranked results (sorted by score, descending)
+    pub results: Vec<RerankResult>,
+    /// Total number of documents reranked
+    pub count: usize,
+    /// Model used
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+}
+
+impl RerankOutput {
+    pub fn new(query: String, results: Vec<RerankResult>) -> Self {
+        let count = results.len();
+        RerankOutput {
+            query,
+            results,
+            count,
+            model: None,
+        }
+    }
+
+    pub fn with_model(mut self, model: &str) -> Self {
+        self.model = Some(model.to_string());
+        self
+    }
+
+    /// Get top K results
+    pub fn top_k(&self, k: usize) -> Vec<&RerankResult> {
+        self.results.iter().take(k).collect()
+    }
+}
+
 /// Embedding output with metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmbeddingOutput {

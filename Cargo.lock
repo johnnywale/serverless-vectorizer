@@ -3580,6 +3580,7 @@ dependencies = [
  "aws-config",
  "aws-credential-types",
  "aws-sdk-s3",
+ "base64 0.22.1",
  "clap",
  "fastembed",
  "lambda_runtime",

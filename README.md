@@ -6,91 +6,96 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/johnnywale/serverless-vectorizer)](https://hub.docker.com/r/johnnywale/serverless-vectorizer)
 [![Docker Image Size](https://img.shields.io/docker/image-size/johnnywale/serverless-vectorizer/latest)](https://hub.docker.com/r/johnnywale/serverless-vectorizer)
 
-AWS Lambda container image for generating embeddings using [fastembed-rs](https://github.com/Anush008/fastembed-rs). Supports **text embeddings**, **image embeddings**, **sparse embeddings**, and **reranking models**. Models are pre-loaded into Docker images for fast cold starts.
+AWS Lambda container image for generating embeddings using [fastembed-rs](https://github.com/Anush008/fastembed-rs).
+Supports **text embeddings**, **image embeddings**, **sparse embeddings**, and **reranking models**. Models are
+pre-loaded into Docker images for fast cold starts.
 
 ## Prebuilt Docker Images
 
-The following text embedding models have prebuilt Docker images available on Docker Hub. You can pull and use them directly:
-
-| Model                                        | Model ID                                              | Dimension | Description                                                                | Docker Image                                                                                   |
-|----------------------------------------------|-------------------------------------------------------|-----------|----------------------------------------------------------------------------|------------------------------------------------------------------------------------------------|
-| All-MINILM-L12-v2                            | `Xenova/all-MiniLM-L12-v2`                            | 384       | `Quantized Sentence Transformer model, MiniLM-L12-v2`                      | `johnnywalee/serverless-vectorizer:latest-Xenova/all-MiniLM-L12-v2`                            |
-| Snowflake-Arctic-Embed-Xs                    | `snowflake/snowflake-arctic-embed-xs`                 | 384       | `Snowflake Arctic embed model, xs`                                         | `johnnywalee/serverless-vectorizer:latest-snowflake/snowflake-arctic-embed-xs`                 |
-| BGE-Small-ZH-v1.5                            | `Xenova/bge-small-zh-v1.5`                            | 512       | `v1.5 release of the small Chinese model`                                  | `johnnywalee/serverless-vectorizer:latest-Xenova/bge-small-zh-v1.5`                            |
-| BGE-Small-EN-v1.5-Onnx-Q                     | `Qdrant/bge-small-en-v1.5-onnx-Q`                     | 384       | `Quantized v1.5 release of the fast and default English model`             | `johnnywalee/serverless-vectorizer:latest-Qdrant/bge-small-en-v1.5-onnx-Q`                     |
-| Snowflake-Arctic-Embed-S                     | `snowflake/snowflake-arctic-embed-s`                  | 384       | `Quantized Snowflake Arctic embed model, small`                            | `johnnywalee/serverless-vectorizer:latest-snowflake/snowflake-arctic-embed-s`                  |
-| Snowflake-Arctic-Embed-M-Long                | `snowflake/snowflake-arctic-embed-m-long`             | 768       | `Snowflake Arctic embed model, medium with 2048 context`                   | `johnnywalee/serverless-vectorizer:latest-snowflake/snowflake-arctic-embed-m-long`             |
-| BGE-Base-EN-v1.5                             | `Xenova/bge-base-en-v1.5`                             | 768       | `v1.5 release of the base English model`                                   | `johnnywalee/serverless-vectorizer:latest-Xenova/bge-base-en-v1.5`                             |
-| Snowflake-Arctic-Embed-M-Long                | `snowflake/snowflake-arctic-embed-m-long`             | 768       | `Quantized Snowflake Arctic embed model, medium with 2048 context`         | `johnnywalee/serverless-vectorizer:latest-snowflake/snowflake-arctic-embed-m-long`             |
-| Paraphrase-Multilingual-MPNET-Base-v2        | `Xenova/paraphrase-multilingual-mpnet-base-v2`        | 768       | `Sentence-transformers model for tasks like clustering or semantic search` | `johnnywalee/serverless-vectorizer:latest-Xenova/paraphrase-multilingual-mpnet-base-v2`        |
-| BGE-Large-ZH-v1.5                            | `Xenova/bge-large-zh-v1.5`                            | 1024      | `v1.5 release of the large Chinese model`                                  | `johnnywalee/serverless-vectorizer:latest-Xenova/bge-large-zh-v1.5`                            |
-| Modernbert-Embed-Large                       | `lightonai/modernbert-embed-large`                    | 1024      | `Large model of ModernBert Text Embeddings`                                | `johnnywalee/serverless-vectorizer:latest-lightonai/modernbert-embed-large`                    |
-| Multilingual-E5-Large-Onnx                   | `Qdrant/multilingual-e5-large-onnx`                   | 1024      | `Large model of multilingual E5 Text Embeddings`                           | `johnnywalee/serverless-vectorizer:latest-Qdrant/multilingual-e5-large-onnx`                   |
-| BGE-Large-EN-v1.5                            | `Xenova/bge-large-en-v1.5`                            | 1024      | `v1.5 release of the large English model`                                  | `johnnywalee/serverless-vectorizer:latest-Xenova/bge-large-en-v1.5`                            |
-| Multilingual-E5-Small                        | `intfloat/multilingual-e5-small`                      | 384       | `Small model of multilingual E5 Text Embeddings`                           | `johnnywalee/serverless-vectorizer:latest-intfloat/multilingual-e5-small`                      |
-| Snowflake-Arctic-Embed-M                     | `Snowflake/snowflake-arctic-embed-m`                  | 768       | `Snowflake Arctic embed model, medium`                                     | `johnnywalee/serverless-vectorizer:latest-Snowflake/snowflake-arctic-embed-m`                  |
-| GTE-Large-EN-v1.5                            | `Alibaba-NLP/gte-large-en-v1.5`                       | 1024      | `Large multilingual embedding model from Alibaba`                          | `johnnywalee/serverless-vectorizer:latest-Alibaba-NLP/gte-large-en-v1.5`                       |
-| All-MPNET-Base-v2                            | `Xenova/all-mpnet-base-v2`                            | 768       | `Sentence Transformer model, mpnet-base-v2`                                | `johnnywalee/serverless-vectorizer:latest-Xenova/all-mpnet-base-v2`                            |
-| Nomic-Embed-Text-v1                          | `nomic-ai/nomic-embed-text-v1`                        | 768       | `8192 context length english model`                                        | `johnnywalee/serverless-vectorizer:latest-nomic-ai/nomic-embed-text-v1`                        |
-| All-MINILM-L6-v2                             | `Xenova/all-MiniLM-L6-v2`                             | 384       | `Quantized Sentence Transformer model, MiniLM-L6-v2`                       | `johnnywalee/serverless-vectorizer:latest-Xenova/all-MiniLM-L6-v2`                             |
-| GTE-Base-EN-v1.5                             | `Alibaba-NLP/gte-base-en-v1.5`                        | 768       | `Large multilingual embedding model from Alibaba`                          | `johnnywalee/serverless-vectorizer:latest-Alibaba-NLP/gte-base-en-v1.5`                        |
-| GTE-Large-EN-v1.5                            | `Alibaba-NLP/gte-large-en-v1.5`                       | 1024      | `Quantized Large multilingual embedding model from Alibaba`                | `johnnywalee/serverless-vectorizer:latest-Alibaba-NLP/gte-large-en-v1.5`                       |
-| Clip-ViT-B-32-Text                           | `Qdrant/clip-ViT-B-32-text`                           | 512       | `CLIP text encoder based on ViT-B/32`                                      | `johnnywalee/serverless-vectorizer:latest-Qdrant/clip-ViT-B-32-text`                           |
-| BGE-Base-EN-v1.5-Onnx-Q                      | `Qdrant/bge-base-en-v1.5-onnx-Q`                      | 768       | `Quantized v1.5 release of the large English model`                        | `johnnywalee/serverless-vectorizer:latest-Qdrant/bge-base-en-v1.5-onnx-Q`                      |
-| BGE-Small-EN-v1.5                            | `Xenova/bge-small-en-v1.5`                            | 384       | `v1.5 release of the fast and default English model`                       | `johnnywalee/serverless-vectorizer:latest-Xenova/bge-small-en-v1.5`                            |
-| Snowflake-Arctic-Embed-S                     | `snowflake/snowflake-arctic-embed-s`                  | 384       | `Snowflake Arctic embed model, small`                                      | `johnnywalee/serverless-vectorizer:latest-snowflake/snowflake-arctic-embed-s`                  |
-| JINA-Embeddings-v2-Base-Code                 | `jinaai/jina-embeddings-v2-base-code`                 | 768       | `Jina embeddings v2 base code`                                             | `johnnywalee/serverless-vectorizer:latest-jinaai/jina-embeddings-v2-base-code`                 |
-| Snowflake-Arctic-Embed-L                     | `snowflake/snowflake-arctic-embed-l`                  | 1024      | `Quantized Snowflake Arctic embed model, large`                            | `johnnywalee/serverless-vectorizer:latest-snowflake/snowflake-arctic-embed-l`                  |
-| All-MINILM-L6-v2-Onnx                        | `Qdrant/all-MiniLM-L6-v2-onnx`                        | 384       | `Sentence Transformer model, MiniLM-L6-v2`                                 | `johnnywalee/serverless-vectorizer:latest-Qdrant/all-MiniLM-L6-v2-onnx`                        |
-| Multilingual-E5-Base                         | `intfloat/multilingual-e5-base`                       | 768       | `Base model of multilingual E5 Text Embeddings`                            | `johnnywalee/serverless-vectorizer:latest-intfloat/multilingual-e5-base`                       |
-| Paraphrase-Multilingual-MINILM-L12-v2-Onnx-Q | `Qdrant/paraphrase-multilingual-MiniLM-L12-v2-onnx-Q` | 384       | `Quantized Multi-lingual model`                                            | `johnnywalee/serverless-vectorizer:latest-Qdrant/paraphrase-multilingual-MiniLM-L12-v2-onnx-Q` |
-| GTE-Base-EN-v1.5                             | `Alibaba-NLP/gte-base-en-v1.5`                        | 768       | `Quantized Large multilingual embedding model from Alibaba`                | `johnnywalee/serverless-vectorizer:latest-Alibaba-NLP/gte-base-en-v1.5`                        |
-| All-MINILM-L12-v2                            | `Xenova/all-MiniLM-L12-v2`                            | 384       | `Sentence Transformer model, MiniLM-L12-v2`                                | `johnnywalee/serverless-vectorizer:latest-Xenova/all-MiniLM-L12-v2`                            |
-| BGE-M3                                       | `BAAI/bge-m3`                                         | 1024      | `Multilingual M3 model with 8192 context length, supports 100+ languages`  | `johnnywalee/serverless-vectorizer:latest-BAAI/bge-m3`                                         |
-| Nomic-Embed-Text-v1.5                        | `nomic-ai/nomic-embed-text-v1.5`                      | 768       | `v1.5 release of the 8192 context length english model`                    | `johnnywalee/serverless-vectorizer:latest-nomic-ai/nomic-embed-text-v1.5`                      |
-| Nomic-Embed-Text-v1.5                        | `nomic-ai/nomic-embed-text-v1.5`                      | 768       | `Quantized v1.5 release of the 8192 context length english model`          | `johnnywalee/serverless-vectorizer:latest-nomic-ai/nomic-embed-text-v1.5`                      |
-| Mxbai-Embed-Large-v1                         | `mixedbread-ai/mxbai-embed-large-v1`                  | 1024      | `Large English embedding model from MixedBreed.ai`                         | `johnnywalee/serverless-vectorizer:latest-mixedbread-ai/mxbai-embed-large-v1`                  |
-| Embeddinggemma-300m-ONNX                     | `onnx-community/embeddinggemma-300m-ONNX`             | 768       | `EmbeddingGemma is a 300M parameter from Google`                           | `johnnywalee/serverless-vectorizer:latest-onnx-community/embeddinggemma-300m-ONNX`             |
-| Snowflake-Arctic-Embed-Xs                    | `snowflake/snowflake-arctic-embed-xs`                 | 384       | `Quantized Snowflake Arctic embed model, xs`                               | `johnnywalee/serverless-vectorizer:latest-snowflake/snowflake-arctic-embed-xs`                 |
-| Mxbai-Embed-Large-v1                         | `mixedbread-ai/mxbai-embed-large-v1`                  | 1024      | `Quantized Large English embedding model from MixedBreed.ai`               | `johnnywalee/serverless-vectorizer:latest-mixedbread-ai/mxbai-embed-large-v1`                  |
-| Snowflake-Arctic-Embed-M                     | `Snowflake/snowflake-arctic-embed-m`                  | 768       | `Quantized Snowflake Arctic embed model, medium`                           | `johnnywalee/serverless-vectorizer:latest-Snowflake/snowflake-arctic-embed-m`                  |
-| Snowflake-Arctic-Embed-L                     | `snowflake/snowflake-arctic-embed-l`                  | 1024      | `Snowflake Arctic embed model, large`                                      | `johnnywalee/serverless-vectorizer:latest-snowflake/snowflake-arctic-embed-l`                  |
-| Paraphrase-Multilingual-MINILM-L12-v2        | `Xenova/paraphrase-multilingual-MiniLM-L12-v2`        | 384       | `Multi-lingual model`                                                      | `johnnywalee/serverless-vectorizer:latest-Xenova/paraphrase-multilingual-MiniLM-L12-v2`        |
-| BGE-Large-EN-v1.5-Onnx-Q                     | `Qdrant/bge-large-en-v1.5-onnx-Q`                     | 1024      | `Quantized v1.5 release of the large English model`                        | `johnnywalee/serverless-vectorizer:latest-Qdrant/bge-large-en-v1.5-onnx-Q`                     |
-
+The following text embedding models have prebuilt Docker images available on Docker Hub. You can pull and use them
+directly:
 
 ## Additional Supported Models
 
-The following models are supported by fastembed-rs and can be built using the [Building Your Own Image](#building-your-own-image) instructions below. Prebuilt images are not yet available for these models.
+The following models are supported by fastembed-rs and can be built using
+the [Building Your Own Image](#building-your-own-image) instructions below. Prebuilt images are not yet available for
+these models.
+
+## Supported Models
+
+### Text Embedding Models
+
+| Model                                        | Model ID                                              | Dimension | Description                                                              | Docker                                                                                         | 
+|----------------------------------------------|-------------------------------------------------------|-----------|--------------------------------------------------------------------------|------------------------------------------------------------------------------------------------|
+| Mxbai-Embed-Large-v1                         | `mixedbread-ai/mxbai-embed-large-v1`                  | 1024      | Quantized Large English embedding model from MixedBreed.ai               | `johnnywalee/serverless-vectorizer:latest-mixedbread-ai/mxbai-embed-large-v1`                  |
+| GTE-Base-EN-v1.5                             | `Alibaba-NLP/gte-base-en-v1.5`                        | 768       | Quantized Large multilingual embedding model from Alibaba                | `johnnywalee/serverless-vectorizer:latest-Alibaba-NLP/gte-base-en-v1.5`                        |
+| Snowflake-Arctic-Embed-Xs                    | `snowflake/snowflake-arctic-embed-xs`                 | 384       | Quantized Snowflake Arctic embed model, xs                               | `johnnywalee/serverless-vectorizer:latest-snowflake/snowflake-arctic-embed-xs`                 |
+| Paraphrase-Multilingual-MINILM-L12-v2        | `Xenova/paraphrase-multilingual-MiniLM-L12-v2`        | 384       | Multi-lingual model                                                      | `johnnywalee/serverless-vectorizer:latest-Xenova/paraphrase-multilingual-MiniLM-L12-v2`        |
+| BGE-Large-EN-v1.5                            | `Xenova/bge-large-en-v1.5`                            | 1024      | v1.5 release of the large English model                                  | `johnnywalee/serverless-vectorizer:latest-Xenova/bge-large-en-v1.5`                            |
+| Paraphrase-Multilingual-MPNET-Base-v2        | `Xenova/paraphrase-multilingual-mpnet-base-v2`        | 768       | Sentence-transformers model for tasks like clustering or semantic search | `johnnywalee/serverless-vectorizer:latest-Xenova/paraphrase-multilingual-mpnet-base-v2`        |
+| Multilingual-E5-Small                        | `intfloat/multilingual-e5-small`                      | 384       | Small model of multilingual E5 Text Embeddings                           | `johnnywalee/serverless-vectorizer:latest-intfloat/multilingual-e5-small`                      |
+| Nomic-Embed-Text-v1.5                        | `nomic-ai/nomic-embed-text-v1.5`                      | 768       | v1.5 release of the 8192 context length english model                    | `johnnywalee/serverless-vectorizer:latest-nomic-ai/nomic-embed-text-v1.5`                      |
+| BGE-Small-EN-v1.5                            | `Xenova/bge-small-en-v1.5`                            | 384       | v1.5 release of the fast and default English model                       | `johnnywalee/serverless-vectorizer:latest-Xenova/bge-small-en-v1.5`                            |
+| Snowflake-Arctic-Embed-M                     | `Snowflake/snowflake-arctic-embed-m`                  | 768       | Quantized Snowflake Arctic embed model, medium                           | `johnnywalee/serverless-vectorizer:latest-Snowflake/snowflake-arctic-embed-m`                  |
+| BGE-Small-ZH-v1.5                            | `Xenova/bge-small-zh-v1.5`                            | 512       | v1.5 release of the small Chinese model                                  | `johnnywalee/serverless-vectorizer:latest-Xenova/bge-small-zh-v1.5`                            |
+| Snowflake-Arctic-Embed-M-Long                | `snowflake/snowflake-arctic-embed-m-long`             | 768       | Quantized Snowflake Arctic embed model, medium with 2048 context         | `johnnywalee/serverless-vectorizer:latest-snowflake/snowflake-arctic-embed-m-long`             |
+| All-MINILM-L6-v2                             | `Xenova/all-MiniLM-L6-v2`                             | 384       | Quantized Sentence Transformer model, MiniLM-L6-v2                       | `johnnywalee/serverless-vectorizer:latest-Xenova/all-MiniLM-L6-v2`                             |
+| Multilingual-E5-Large-Onnx                   | `Qdrant/multilingual-e5-large-onnx`                   | 1024      | Large model of multilingual E5 Text Embeddings                           | `johnnywalee/serverless-vectorizer:latest-Qdrant/multilingual-e5-large-onnx`                   |
+| Mxbai-Embed-Large-v1                         | `mixedbread-ai/mxbai-embed-large-v1`                  | 1024      | Large English embedding model from MixedBreed.ai                         | `johnnywalee/serverless-vectorizer:latest-mixedbread-ai/mxbai-embed-large-v1`                  |
+| GTE-Large-EN-v1.5                            | `Alibaba-NLP/gte-large-en-v1.5`                       | 1024      | Quantized Large multilingual embedding model from Alibaba                | `johnnywalee/serverless-vectorizer:latest-Alibaba-NLP/gte-large-en-v1.5`                       |
+| GTE-Large-EN-v1.5                            | `Alibaba-NLP/gte-large-en-v1.5`                       | 1024      | Large multilingual embedding model from Alibaba                          | `johnnywalee/serverless-vectorizer:latest-Alibaba-NLP/gte-large-en-v1.5`                       |
+| Modernbert-Embed-Large                       | `lightonai/modernbert-embed-large`                    | 1024      | Large model of ModernBert Text Embeddings                                | `johnnywalee/serverless-vectorizer:latest-lightonai/modernbert-embed-large`                    |
+| Clip-ViT-B-32-Text                           | `Qdrant/clip-ViT-B-32-text`                           | 512       | CLIP text encoder based on ViT-B/32                                      | `johnnywalee/serverless-vectorizer:latest-Qdrant/clip-ViT-B-32-text`                           |
+| All-MINILM-L12-v2                            | `Xenova/all-MiniLM-L12-v2`                            | 384       | Quantized Sentence Transformer model, MiniLM-L12-v2                      | `johnnywalee/serverless-vectorizer:latest-Xenova/all-MiniLM-L12-v2`                            |
+| BGE-Base-EN-v1.5                             | `Xenova/bge-base-en-v1.5`                             | 768       | v1.5 release of the base English model                                   | `johnnywalee/serverless-vectorizer:latest-Xenova/bge-base-en-v1.5`                             |
+| BGE-Base-EN-v1.5-Onnx-Q                      | `Qdrant/bge-base-en-v1.5-onnx-Q`                      | 768       | Quantized v1.5 release of the large English model                        | `johnnywalee/serverless-vectorizer:latest-Qdrant/bge-base-en-v1.5-onnx-Q`                      |
+| Nomic-Embed-Text-v1.5                        | `nomic-ai/nomic-embed-text-v1.5`                      | 768       | Quantized v1.5 release of the 8192 context length english model          | `johnnywalee/serverless-vectorizer:latest-nomic-ai/nomic-embed-text-v1.5`                      |
+| Snowflake-Arctic-Embed-S                     | `snowflake/snowflake-arctic-embed-s`                  | 384       | Snowflake Arctic embed model, small                                      | `johnnywalee/serverless-vectorizer:latest-snowflake/snowflake-arctic-embed-s`                  |
+| All-MINILM-L6-v2-Onnx                        | `Qdrant/all-MiniLM-L6-v2-onnx`                        | 384       | Sentence Transformer model, MiniLM-L6-v2                                 | `johnnywalee/serverless-vectorizer:latest-Qdrant/all-MiniLM-L6-v2-onnx`                        |
+| BGE-Small-EN-v1.5-Onnx-Q                     | `Qdrant/bge-small-en-v1.5-onnx-Q`                     | 384       | Quantized v1.5 release of the fast and default English model             | `johnnywalee/serverless-vectorizer:latest-Qdrant/bge-small-en-v1.5-onnx-Q`                     |
+| Paraphrase-Multilingual-MINILM-L12-v2-Onnx-Q | `Qdrant/paraphrase-multilingual-MiniLM-L12-v2-onnx-Q` | 384       | Quantized Multi-lingual model                                            | `johnnywalee/serverless-vectorizer:latest-Qdrant/paraphrase-multilingual-MiniLM-L12-v2-onnx-Q` |
+| Snowflake-Arctic-Embed-S                     | `snowflake/snowflake-arctic-embed-s`                  | 384       | Quantized Snowflake Arctic embed model, small                            | `johnnywalee/serverless-vectorizer:latest-snowflake/snowflake-arctic-embed-s`                  |
+| Snowflake-Arctic-Embed-M                     | `Snowflake/snowflake-arctic-embed-m`                  | 768       | Snowflake Arctic embed model, medium                                     | `johnnywalee/serverless-vectorizer:latest-Snowflake/snowflake-arctic-embed-m`                  |
+| All-MPNET-Base-v2                            | `Xenova/all-mpnet-base-v2`                            | 768       | Sentence Transformer model, mpnet-base-v2                                | `johnnywalee/serverless-vectorizer:latest-Xenova/all-mpnet-base-v2`                            |
+| Snowflake-Arctic-Embed-M-Long                | `snowflake/snowflake-arctic-embed-m-long`             | 768       | Snowflake Arctic embed model, medium with 2048 context                   | `johnnywalee/serverless-vectorizer:latest-snowflake/snowflake-arctic-embed-m-long`             |
+| BGE-Large-ZH-v1.5                            | `Xenova/bge-large-zh-v1.5`                            | 1024      | v1.5 release of the large Chinese model                                  | `johnnywalee/serverless-vectorizer:latest-Xenova/bge-large-zh-v1.5`                            |
+| Embeddinggemma-300m-ONNX                     | `onnx-community/embeddinggemma-300m-ONNX`             | 768       | EmbeddingGemma is a 300M parameter from Google                           | `johnnywalee/serverless-vectorizer:latest-onnx-community/embeddinggemma-300m-ONNX`             |
+| Snowflake-Arctic-Embed-Xs                    | `snowflake/snowflake-arctic-embed-xs`                 | 384       | Snowflake Arctic embed model, xs                                         | `johnnywalee/serverless-vectorizer:latest-snowflake/snowflake-arctic-embed-xs`                 |
+| Snowflake-Arctic-Embed-L                     | `snowflake/snowflake-arctic-embed-l`                  | 1024      | Snowflake Arctic embed model, large                                      | `johnnywalee/serverless-vectorizer:latest-snowflake/snowflake-arctic-embed-l`                  |
+| JINA-Embeddings-v2-Base-Code                 | `jinaai/jina-embeddings-v2-base-code`                 | 768       | Jina embeddings v2 base code                                             | `johnnywalee/serverless-vectorizer:latest-jinaai/jina-embeddings-v2-base-code`                 |
+| Multilingual-E5-Base                         | `intfloat/multilingual-e5-base`                       | 768       | Base model of multilingual E5 Text Embeddings                            | `johnnywalee/serverless-vectorizer:latest-intfloat/multilingual-e5-base`                       |
+| GTE-Base-EN-v1.5                             | `Alibaba-NLP/gte-base-en-v1.5`                        | 768       | Large multilingual embedding model from Alibaba                          | `johnnywalee/serverless-vectorizer:latest-Alibaba-NLP/gte-base-en-v1.5`                        |
+| All-MINILM-L12-v2                            | `Xenova/all-MiniLM-L12-v2`                            | 384       | Sentence Transformer model, MiniLM-L12-v2                                | `johnnywalee/serverless-vectorizer:latest-Xenova/all-MiniLM-L12-v2`                            |
+| Snowflake-Arctic-Embed-L                     | `snowflake/snowflake-arctic-embed-l`                  | 1024      | Quantized Snowflake Arctic embed model, large                            | `johnnywalee/serverless-vectorizer:latest-snowflake/snowflake-arctic-embed-l`                  |
+| Nomic-Embed-Text-v1                          | `nomic-ai/nomic-embed-text-v1`                        | 768       | 8192 context length english model                                        | `johnnywalee/serverless-vectorizer:latest-nomic-ai/nomic-embed-text-v1`                        |
+| BGE-M3                                       | `BAAI/bge-m3`                                         | 1024      | Multilingual M3 model with 8192 context length, supports 100+ languages  | `johnnywalee/serverless-vectorizer:latest-BAAI/bge-m3`                                         |
+| BGE-Large-EN-v1.5-Onnx-Q                     | `Qdrant/bge-large-en-v1.5-onnx-Q`                     | 1024      | Quantized v1.5 release of the large English model                        | `johnnywalee/serverless-vectorizer:latest-Qdrant/bge-large-en-v1.5-onnx-Q`                     |
 
 ### Image Embedding Models
 
-| Model | Model ID | Dimension | Description |
-|-------|----------|-----------|-------------|
-| Clip-ViT-B-32-Vision | `Qdrant/clip-ViT-B-32-vision` | 512 | CLIP vision encoder based on ViT-B/32 |
-| Resnet50-Onnx | `Qdrant/resnet50-onnx` | 2048 | ResNet-50 from `Deep Residual Learning for Image Recognition <https://arxiv.org/abs/1512.03385>`__. |
-| Unicom-ViT-B-16 | `Qdrant/Unicom-ViT-B-16` | 768 | Unicom Unicom-ViT-B-16 from open-metric-learning |
-| Unicom-ViT-B-32 | `Qdrant/Unicom-ViT-B-32` | 512 | Unicom Unicom-ViT-B-32 from open-metric-learning |
-| Nomic-Embed-Vision-v1.5 | `nomic-ai/nomic-embed-vision-v1.5` | 768 | Nomic NomicEmbedVisionV15 |
+| Model                   | Model ID                           | Dimension | Description                                                                                         | Docker                                                                      | 
+|-------------------------|------------------------------------|-----------|-----------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------|
+| Clip-ViT-B-32-Vision    | `Qdrant/clip-ViT-B-32-vision`      | 512       | CLIP vision encoder based on ViT-B/32                                                               | `johnnywalee/serverless-vectorizer:latest-Qdrant/clip-ViT-B-32-vision`      |
+| Resnet50-Onnx           | `Qdrant/resnet50-onnx`             | 2048      | ResNet-50 from `Deep Residual Learning for Image Recognition <https://arxiv.org/abs/1512.03385>`__. | `johnnywalee/serverless-vectorizer:latest-Qdrant/resnet50-onnx`             |
+| Unicom-ViT-B-16         | `Qdrant/Unicom-ViT-B-16`           | 768       | Unicom Unicom-ViT-B-16 from open-metric-learning                                                    | `johnnywalee/serverless-vectorizer:latest-Qdrant/Unicom-ViT-B-16`           |
+| Unicom-ViT-B-32         | `Qdrant/Unicom-ViT-B-32`           | 512       | Unicom Unicom-ViT-B-32 from open-metric-learning                                                    | `johnnywalee/serverless-vectorizer:latest-Qdrant/Unicom-ViT-B-32`           |
+| Nomic-Embed-Vision-v1.5 | `nomic-ai/nomic-embed-vision-v1.5` | 768       | Nomic NomicEmbedVisionV15                                                                           | `johnnywalee/serverless-vectorizer:latest-nomic-ai/nomic-embed-vision-v1.5` |
 
 ### Sparse Text Embedding Models
 
-| Model | Model ID | Dimension | Description |
-|-------|----------|-----------|-------------|
-| Splade_PP_en_v1 | `Qdrant/Splade_PP_en_v1` | - | Splade sparse vector model for commercial use, v1 |
-| BGE-M3 | `BAAI/bge-m3` | - | BGE-M3 sparse embedding model with 8192 context, supports 100+ languages |
+| Model           | Model ID                 | Dimension | Description                                                              | Docker                                                            | 
+|-----------------|--------------------------|-----------|--------------------------------------------------------------------------|-------------------------------------------------------------------|
+| Splade_PP_en_v1 | `Qdrant/Splade_PP_en_v1` | -         | Splade sparse vector model for commercial use, v1                        | `johnnywalee/serverless-vectorizer:latest-Qdrant/Splade_PP_en_v1` |
+| BGE-M3          | `BAAI/bge-m3`            | -         | BGE-M3 sparse embedding model with 8192 context, supports 100+ languages | `johnnywalee/serverless-vectorizer:latest-BAAI/bge-m3`            |
 
 ### Reranking Models
 
-| Model | Model ID | Dimension | Description |
-|-------|----------|-----------|-------------|
-| BGE-Reranker-Base | `BAAI/bge-reranker-base` | - | reranker model for English and Chinese |
-| BGE-Reranker-v2-M3 | `rozgo/bge-reranker-v2-m3` | - | reranker model for multilingual |
-| JINA-Reranker-v1-Turbo-EN | `jinaai/jina-reranker-v1-turbo-en` | - | reranker model for English |
-| JINA-Reranker-v2-Base-Multilingual | `jinaai/jina-reranker-v2-base-multilingual` | - | reranker model for multilingual |
-
-
-
+| Model                              | Model ID                                    | Dimension | Description                            | Docker                                                                               | 
+|------------------------------------|---------------------------------------------|-----------|----------------------------------------|--------------------------------------------------------------------------------------|
+| BGE-Reranker-Base                  | `BAAI/bge-reranker-base`                    | -         | reranker model for English and Chinese | `johnnywalee/serverless-vectorizer:latest-BAAI/bge-reranker-base`                    |
+| BGE-Reranker-v2-M3                 | `rozgo/bge-reranker-v2-m3`                  | -         | reranker model for multilingual        | `johnnywalee/serverless-vectorizer:latest-rozgo/bge-reranker-v2-m3`                  |
+| JINA-Reranker-v1-Turbo-EN          | `jinaai/jina-reranker-v1-turbo-en`          | -         | reranker model for English             | `johnnywalee/serverless-vectorizer:latest-jinaai/jina-reranker-v1-turbo-en`          |
+| JINA-Reranker-v2-Base-Multilingual | `jinaai/jina-reranker-v2-base-multilingual` | -         | reranker model for multilingual        | `johnnywalee/serverless-vectorizer:latest-jinaai/jina-reranker-v2-base-multilingual` |
 
 ## Building Your Own Image
 
@@ -192,22 +197,19 @@ cargo run --bin list-models -- -f json
 cargo run --bin list-models -- -c all
 ```
 
-
-
-
-
 ## Lambda API Reference
 
-The Lambda automatically detects the model type from the `MODEL_ID` environment variable and routes requests accordingly. Each model type has its own request/response format.
+The Lambda automatically detects the model type from the `MODEL_ID` environment variable and routes requests
+accordingly. Each model type has its own request/response format.
 
 ### Model Type Auto-Detection
 
-| MODEL_ID Pattern | Model Type | Use Case |
-|-----------------|------------|----------|
-| Text embedding models | `text` | Semantic search, similarity |
-| `Qdrant/clip-ViT-B-32-vision`, etc. | `image` | Image similarity, visual search |
-| `Qdrant/Splade_PP_en_v1`, etc. | `sparse` | Hybrid search, keyword matching |
-| `BAAI/bge-reranker-*`, etc. | `rerank` | Re-ranking search results |
+| MODEL_ID Pattern                    | Model Type | Use Case                        |
+|-------------------------------------|------------|---------------------------------|
+| Text embedding models               | `text`     | Semantic search, similarity     |
+| `Qdrant/clip-ViT-B-32-vision`, etc. | `image`    | Image similarity, visual search |
+| `Qdrant/Splade_PP_en_v1`, etc.      | `sparse`   | Hybrid search, keyword matching |
+| `BAAI/bge-reranker-*`, etc.         | `rerank`   | Re-ranking search results       |
 
 ---
 
@@ -219,7 +221,10 @@ Generate dense vector embeddings for text. Default model type.
 
 ```json
 {
-  "messages": ["Hello world", "How are you?"]
+  "messages": [
+    "Hello world",
+    "How are you?"
+  ]
 }
 ```
 
@@ -236,8 +241,18 @@ Or read from S3:
 ```json
 {
   "embeddings": [
-    [0.123, 0.456, -0.789, ...],
-    [0.321, 0.654, -0.987, ...]
+    [
+      0.123,
+      0.456,
+      -0.789,
+      ...
+    ],
+    [
+      0.321,
+      0.654,
+      -0.987,
+      ...
+    ]
   ],
   "dimension": 384,
   "model_type": "text",
@@ -289,8 +304,12 @@ Images can be provided as base64-encoded data or S3 paths:
 ```json
 {
   "images": [
-    {"base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ..."},
-    {"s3_path": "my-bucket/images/photo.jpg"}
+    {
+      "base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ..."
+    },
+    {
+      "s3_path": "my-bucket/images/photo.jpg"
+    }
   ]
 }
 ```
@@ -311,8 +330,18 @@ Or using `s3_images` for multiple S3 paths:
 ```json
 {
   "embeddings": [
-    [0.123, 0.456, -0.789, ...],
-    [0.321, 0.654, -0.987, ...]
+    [
+      0.123,
+      0.456,
+      -0.789,
+      ...
+    ],
+    [
+      0.321,
+      0.654,
+      -0.987,
+      ...
+    ]
   ],
   "dimension": 512,
   "model_type": "image",
@@ -363,13 +392,16 @@ aws lambda invoke \
 
 ## Sparse Embeddings
 
-Generate sparse vector embeddings for text using SPLADE models. Useful for hybrid search combining dense and sparse vectors.
+Generate sparse vector embeddings for text using SPLADE models. Useful for hybrid search combining dense and sparse
+vectors.
 
 ### Request
 
 ```json
 {
-  "messages": ["The quick brown fox jumps over the lazy dog"]
+  "messages": [
+    "The quick brown fox jumps over the lazy dog"
+  ]
 }
 ```
 
@@ -379,8 +411,20 @@ Generate sparse vector embeddings for text using SPLADE models. Useful for hybri
 {
   "sparse_embeddings": [
     {
-      "indices": [102, 456, 789, 1234, 5678],
-      "values": [0.5, 0.3, 0.8, 0.2, 0.9]
+      "indices": [
+        102,
+        456,
+        789,
+        1234,
+        5678
+      ],
+      "values": [
+        0.5,
+        0.3,
+        0.8,
+        0.2,
+        0.9
+      ]
     }
   ],
   "model_type": "sparse",
@@ -389,6 +433,7 @@ Generate sparse vector embeddings for text using SPLADE models. Useful for hybri
 ```
 
 The sparse embedding contains:
+
 - `indices`: Token indices with non-zero weights
 - `values`: Corresponding weights for each token
 
@@ -447,6 +492,7 @@ Re-rank documents based on relevance to a query. Useful for improving search res
 ```
 
 Parameters:
+
 - `query`: The search query
 - `documents`: Array of documents to rank
 - `top_k` (optional): Return only top K results
@@ -543,6 +589,7 @@ aws lambda invoke \
 ```
 
 The S3 file can contain:
+
 - Plain text (embedded as single document)
 - JSON array of strings (each string embedded separately)
 
@@ -576,7 +623,13 @@ aws lambda invoke \
 
 ```json
 {
-  "embeddings": [[0.123, 0.456, ...]],
+  "embeddings": [
+    [
+      0.123,
+      0.456,
+      ...
+    ]
+  ],
   "dimension": 384,
   "model_type": "text",
   "count": 1,
@@ -608,24 +661,48 @@ aws lambda invoke \
 ```json
 {
   // === Text Embedding Input ===
-  "messages": ["text1", "text2"],           // Direct text input
-  "s3_file": "bucket/key",                  // OR read text from S3
+  "messages": [
+    "text1",
+    "text2"
+  ],
+  // Direct text input
+  "s3_file": "bucket/key",
+  // OR read text from S3
 
   // === Image Embedding Input ===
-  "images": [                               // Image input array
-    {"base64": "..."},                      // Base64 encoded image
-    {"s3_path": "bucket/key"}               // OR S3 path to image
+  "images": [
+    // Image input array
+    {
+      "base64": "..."
+    },
+    // Base64 encoded image
+    {
+      "s3_path": "bucket/key"
+    }
+    // OR S3 path to image
   ],
-  "s3_images": ["bucket/key1", "bucket/key2"], // OR S3 paths array
+  "s3_images": [
+    "bucket/key1",
+    "bucket/key2"
+  ],
+  // OR S3 paths array
 
   // === Reranking Input ===
-  "query": "search query",                  // Query for reranking
-  "documents": ["doc1", "doc2"],            // Documents to rank
-  "top_k": 5,                               // Return top K results (optional)
-  "return_documents": true,                 // Include docs in response (optional)
+  "query": "search query",
+  // Query for reranking
+  "documents": [
+    "doc1",
+    "doc2"
+  ],
+  // Documents to rank
+  "top_k": 5,
+  // Return top K results (optional)
+  "return_documents": true,
+  // Include docs in response (optional)
 
   // === Output Options ===
-  "save_to_s3": {                           // Save results to S3 (optional)
+  "save_to_s3": {
+    // Save results to S3 (optional)
     "bucket": "bucket-name",
     "key": "path/to/output.json"
   }
@@ -638,11 +715,23 @@ aws lambda invoke \
 
 ```json
 {
-  "embeddings": [[...], [...]],             // Dense embedding vectors
-  "dimension": 384,                         // Vector dimension
-  "model_type": "text",                     // "text" or "image"
-  "count": 2,                               // Number of embeddings
-  "s3_location": "s3://..."                 // If save_to_s3 was used
+  "embeddings": [
+    [
+      ...
+    ],
+    [
+      ...
+    ]
+  ],
+  // Dense embedding vectors
+  "dimension": 384,
+  // Vector dimension
+  "model_type": "text",
+  // "text" or "image"
+  "count": 2,
+  // Number of embeddings
+  "s3_location": "s3://..."
+  // If save_to_s3 was used
 }
 ```
 
@@ -651,7 +740,14 @@ aws lambda invoke \
 ```json
 {
   "sparse_embeddings": [
-    {"indices": [...], "values": [...]}
+    {
+      "indices": [
+        ...
+      ],
+      "values": [
+        ...
+      ]
+    }
   ],
   "model_type": "sparse",
   "count": 1
@@ -663,7 +759,11 @@ aws lambda invoke \
 ```json
 {
   "rankings": [
-    {"index": 0, "score": 0.95, "document": "..."}
+    {
+      "index": 0,
+      "score": 0.95,
+      "document": "..."
+    }
   ],
   "model_type": "rerank",
   "count": 2
@@ -755,7 +855,8 @@ aws lambda update-function-code \
 
 ## Acknowledgments
 
-This project is powered by [fastembed-rs](https://github.com/Anush008/fastembed-rs), a Rust library for fast, lightweight embedding generation. fastembed-rs supports:
+This project is powered by [fastembed-rs](https://github.com/Anush008/fastembed-rs), a Rust library for fast,
+lightweight embedding generation. fastembed-rs supports:
 
 - **Text Embeddings** - Dense vector representations for semantic search and similarity
 - **Image Embeddings** - Vision encoders like CLIP and ResNet for image similarity
